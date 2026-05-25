@@ -122,7 +122,19 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .pw-btn:hover{transform:translateY(-2px);opacity:.92}
 .pw-note{font-size:12px;opacity:.6;margin-top:.75rem;font-weight:600}
 
-/* SKELETONS */
+/* ARTICLE MODAL */
+.art-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:none;align-items:center;justify-content:center;padding:1rem}
+.art-overlay.open{display:flex}
+.art-modal{background:var(--surface);border-radius:var(--r);padding:2.5rem;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;position:relative;animation:pop .3s ease}
+.art-close{position:absolute;top:1rem;right:1rem;background:var(--bg);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.art-close:hover{background:var(--border)}
+.art-tag{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:4px 10px;border-radius:99px;display:inline-block;margin-bottom:1rem}
+.art-title{font-family:'Lilita One',sans-serif;font-size:clamp(22px,4vw,30px);line-height:1.2;margin-bottom:1.25rem;color:var(--text)}
+.art-body{font-size:16px;line-height:1.8;color:var(--muted);font-weight:600;margin-bottom:1.5rem}
+.art-wow{display:flex;align-items:flex-start;gap:8px;background:var(--purple-lt);border-radius:var(--r-sm);padding:12px 14px;font-size:14px;font-weight:700;color:var(--purple-dk);border-left:3px solid var(--purple)}
+.card{cursor:pointer}
+.read-more{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--purple);margin-top:4px}
+
 .sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
 .sk-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1.4rem 1.5rem;display:flex;flex-direction:column;gap:14px}
 .sk{background:linear-gradient(90deg,var(--border) 25%,#fff 50%,var(--border) 75%);background-size:200% 100%;border-radius:8px;animation:shimmer 1.5s infinite}
@@ -205,7 +217,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <div class="promo-banner" id="promoBanner">
   <div class="promo-banner-inner">
     <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
-    <div class="promo-banner-sub">That's half price! Subscribe before June 1st and lock it in forever.</div>
+    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
     <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2026</div><br>
     <a href="#" onclick="promoCodeApplied=true;subscribe();return false">Grab the deal now →</a>
   </div>
@@ -273,8 +285,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
     <h2>Unlock all stories!</h2>
     <p>You're reading 3 of <span id="totalCount">24</span> stories. Subscribe to read everything!</p>
-    <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
-    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
+    <div class="price-tag" id="paywallPrice">$3.79<span>/month</span></div>
+    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.79/mo</div>
 
     <div class="promo-code-box" id="promoBox">
       <div class="promo-code-title">🔥 GET HALF PRICE — ENTER PROMO CODE BELOW!</div>
@@ -314,7 +326,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
     <div class="plan featured">
       <div class="plan-label">⭐ Pro</div>
-      <div class="plan-price" id="planPrice">$3.99<small>/mo</small></div>
+      <div class="plan-price" id="planPrice">$3.79<small>/mo</small></div>
       <div class="plan-desc" id="planDesc">Full access, cancel anytime</div>
       <ul class="plan-features">
         <li>All 24+ fresh articles</li>
@@ -383,6 +395,17 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   </div>
 </div>
 
+<!-- ARTICLE MODAL -->
+<div class="art-overlay" id="artOverlay" onclick="closeArticle(event)">
+  <div class="art-modal">
+    <button class="art-close" onclick="closeArtModal()">✕</button>
+    <span class="art-tag" id="artTag"></span>
+    <h2 class="art-title" id="artTitle"></h2>
+    <p class="art-body" id="artBody"></p>
+    <div class="art-wow"><span>💬</span><span id="artWow"></span></div>
+  </div>
+</div>
+
 <script>
 /* ── state ── */
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
@@ -433,14 +456,17 @@ function renderCards(){
   const lbl=activeCat==='all'?`Latest stories — ${allArticles.length} articles`:`${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${list.length} stories`;
   document.getElementById('secLbl').textContent=lbl;
   if(!list.length){document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">🔍</span><h2>Nothing here!</h2><p>No stories in this category yet — try another!</p></div>`;return;}
-  document.getElementById('content').innerHTML=`<div class="grid">${list.map(a=>{
+  // store for modal lookup
+  window._articles = list;
+  document.getElementById('content').innerHTML=`<div class="grid">${list.map((a,i)=>{
     const cat=a.category||'cool',em=EMO[cat]||'✨',lb=LBL[cat]||cat;
     const date=a.pubDate?new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
-    return `<div class="card r-${esc(cat)}">
+    return `<div class="card r-${esc(cat)}" onclick="openArticle(${i})">
       <div class="card-top"><div class="c-ico">${em}</div><div class="c-meta"><span class="c-tag">${esc(lb)}</span><span class="c-src">${date}</span></div></div>
       <h2 class="c-title">${esc(a.headline)}</h2>
       <p class="c-body">${esc(a.summary)}</p>
       <div class="c-wow"><span class="c-wow-i">💬</span><span>${esc(a.wow)}</span></div>
+      <span class="read-more">Read full story →</span>
     </div>`;
   }).join('')}</div>`;
 }
@@ -532,7 +558,32 @@ async function submitAuth(){
 
 function logout(){token=null;localStorage.removeItem('kab_token');isSubscribed=false;document.getElementById('authButtons').style.display='flex';document.getElementById('userArea').style.display='none';loadNews();}
 
-/* ── promo code ── */
+/* ── article modal ── */
+function openArticle(i){
+  const a = window._articles?.[i]; if(!a) return;
+  const cat=a.category||'cool', lb=LBL[cat]||cat;
+  const tag = document.getElementById('artTag');
+  tag.textContent = lb;
+  tag.className = 'art-tag';
+  // apply category color inline
+  const colors = {robots:'#D4F7ED;color:#0A6950',art:'#FFE4EE;color:#A0205A',science:'#DCEEFF;color:#135EA8',gaming:'#EAE8FF;color:#4538C9',animals:'#DFF7E8;color:#1A7A3E',space:'#FFE8E8;color:#A02424',cool:'#FFF5D0;color:#8A5C00'};
+  const [bg, col] = (colors[cat]||'#EAE8FF;color:#4538C9').split(';color:');
+  tag.style.cssText = `background:${bg};color:#${col}`;
+  document.getElementById('artTitle').textContent = a.headline;
+  document.getElementById('artBody').textContent  = a.full || a.summary;
+  document.getElementById('artWow').textContent   = a.wow;
+  document.getElementById('artOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeArtModal(){
+  document.getElementById('artOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeArticle(e){
+  if(e.target===document.getElementById('artOverlay')) closeArtModal();
+}
+
+
 let promoCodeApplied = false;
 const VALID_PROMO = 'CODINGMINDS';
 
@@ -564,7 +615,7 @@ async function checkPromo(){
       document.getElementById('paywallPrice').innerHTML=`$1.99<span>/month</span>`;
       document.getElementById('paywallPromoNote').style.display='block';
       document.getElementById('planPrice').innerHTML=`$1.99<small>/mo</small>`;
-      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.99/mo';
+      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.79/mo';
     }
   }catch{}
 }

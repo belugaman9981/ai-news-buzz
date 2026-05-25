@@ -106,13 +106,12 @@ STORIES:
 ${articleList}
 
 Return ONLY a valid JSON array, no markdown.
-Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": { "young": { "summary": "2 simple sentences for age 7 written in your own words", "wow": "one specific surprising fact from THIS story, max 10 words" }, "middle": { "summary": "2-3 sentences for age 10 written in your own words", "wow": "one specific interesting fact from THIS story, max 14 words" }, "older": { "summary": "3 sentences for age 13 written in your own words", "wow": "one specific insightful fact from THIS story, max 18 words" } } }
+Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": { "young": { "summary": "2 simple sentences for age 7 written in your own words", "full": "5-6 simple sentences telling the whole story for age 7, fun and engaging", "wow": "one specific surprising fact from THIS story, max 10 words" }, "middle": { "summary": "2-3 sentences for age 10 written in your own words", "full": "6-8 sentences telling the whole story for age 10, include interesting details", "wow": "one specific interesting fact from THIS story, max 14 words" }, "older": { "summary": "3 sentences for age 13 written in your own words", "full": "8-10 sentences telling the whole story for age 13, include context and implications", "wow": "one specific insightful fact from THIS story, max 18 words" } } }
 
 CRITICAL rules for "wow":
 - Every wow must be SPECIFIC to that individual story — a real number, a real thing that happened, or a surprising detail
 - NEVER use generic phrases like "big deal for AI", "AI is amazing", "this could change AI", "AI is doing great things"
-- Good examples: "The robot can fold 50 shirts per hour", "The model was trained on 10 trillion words", "It beat world champions at chess in under 3 seconds"
-- Bad examples: "AI is amazing!", "This is a big deal!", "Technology is changing fast!"
+- Good examples: "The robot can fold 50 shirts per hour", "The model was trained on 10 trillion words"
 Stay accurate, positive, age-appropriate.`;
     try {
       const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:3000, messages:[{role:'user',content:prompt}] });
@@ -329,6 +328,7 @@ app.get('/api/news', (req, res) => {
     category: a.category,
     pubDate:  a.pubDate,
     summary:  a.levels?.[level]?.summary || '',
+    full:     a.levels?.[level]?.full    || '',
     wow:      a.levels?.[level]?.wow     || '',
   }));
 
@@ -338,7 +338,7 @@ app.get('/api/news', (req, res) => {
 /* ─── STATUS / ADMIN ──────────────────────────── */
 app.get('/api/promo', (req, res) => {
   const isPromo = !!process.env.STRIPE_PROMO_PRICE_ID && new Date() < new Date('2026-06-01T00:00:00Z');
-  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.79', promoEnds: '2026-06-01' });
 });
 
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
