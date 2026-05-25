@@ -130,7 +130,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .art-close:hover{background:var(--border)}
 .art-tag{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:4px 10px;border-radius:99px;display:inline-block;margin-bottom:1rem}
 .art-title{font-family:'Lilita One',sans-serif;font-size:clamp(22px,4vw,30px);line-height:1.2;margin-bottom:1.25rem;color:var(--text)}
-.art-body{font-size:16px;line-height:1.8;color:var(--muted);font-weight:600;margin-bottom:1.5rem}
+.art-body{margin-bottom:1.5rem}
+.art-body p{font-size:16px;line-height:1.8;color:var(--muted);font-weight:600;margin-bottom:1rem}
+.art-body p:last-child{margin-bottom:0}
 .art-wow{display:flex;align-items:flex-start;gap:8px;background:var(--purple-lt);border-radius:var(--r-sm);padding:12px 14px;font-size:14px;font-weight:700;color:var(--purple-dk);border-left:3px solid var(--purple)}
 .card{cursor:pointer}
 .read-more{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--purple);margin-top:4px}
@@ -217,7 +219,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <div class="promo-banner" id="promoBanner">
   <div class="promo-banner-inner">
     <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
-    <div class="promo-banner-sub">That's half price! Subscribe before June 1st and lock it in forever* .</div>
+    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
     <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2026</div><br>
     <a href="#" onclick="promoCodeApplied=true;subscribe();return false">Grab the deal now →</a>
   </div>
@@ -285,8 +287,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
     <h2>Unlock all stories!</h2>
     <p>You're reading 3 of <span id="totalCount">24</span> stories. Subscribe to read everything!</p>
-    <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
-    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo *</div>
+    <div class="price-tag" id="paywallPrice">$3.79<span>/month</span></div>
+    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.79/mo</div>
 
     <div class="promo-code-box" id="promoBox">
       <div class="promo-code-title">🔥 GET HALF PRICE — ENTER PROMO CODE BELOW!</div>
@@ -326,7 +328,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
     <div class="plan featured">
       <div class="plan-label">⭐ Pro</div>
-      <div class="plan-price" id="planPrice">$3.99<small>/mo</small></div>
+      <div class="plan-price" id="planPrice">$3.79<small>/mo</small></div>
       <div class="plan-desc" id="planDesc">Full access, cancel anytime</div>
       <ul class="plan-features">
         <li>All 24+ fresh articles</li>
@@ -559,19 +561,21 @@ async function submitAuth(){
 function logout(){token=null;localStorage.removeItem('kab_token');isSubscribed=false;document.getElementById('authButtons').style.display='flex';document.getElementById('userArea').style.display='none';loadNews();}
 
 /* ── article modal ── */
+function decodeHtml(s){const t=document.createElement('textarea');t.innerHTML=s;return t.value;}
 function openArticle(i){
   const a = window._articles?.[i]; if(!a) return;
   const cat=a.category||'cool', lb=LBL[cat]||cat;
   const tag = document.getElementById('artTag');
   tag.textContent = lb;
   tag.className = 'art-tag';
-  // apply category color inline
   const colors = {robots:'#D4F7ED;color:#0A6950',art:'#FFE4EE;color:#A0205A',science:'#DCEEFF;color:#135EA8',gaming:'#EAE8FF;color:#4538C9',animals:'#DFF7E8;color:#1A7A3E',space:'#FFE8E8;color:#A02424',cool:'#FFF5D0;color:#8A5C00'};
   const [bg, col] = (colors[cat]||'#EAE8FF;color:#4538C9').split(';color:');
   tag.style.cssText = `background:${bg};color:#${col}`;
-  document.getElementById('artTitle').textContent = a.headline;
-  document.getElementById('artBody').textContent  = a.full || a.summary;
-  document.getElementById('artWow').textContent   = a.wow;
+  document.getElementById('artTitle').textContent = decodeHtml(a.headline);
+  const bodyEl = document.getElementById('artBody');
+  const fullText = decodeHtml(a.full || a.summary);
+  bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('');
+  document.getElementById('artWow').textContent   = decodeHtml(a.wow);
   document.getElementById('artOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -615,7 +619,7 @@ async function checkPromo(){
       document.getElementById('paywallPrice').innerHTML=`$1.99<span>/month</span>`;
       document.getElementById('paywallPromoNote').style.display='block';
       document.getElementById('planPrice').innerHTML=`$1.99<small>/mo</small>`;
-      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.99/mo *';
+      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.79/mo';
     }
   }catch{}
 }

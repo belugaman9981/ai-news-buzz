@@ -30,8 +30,11 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const stripe    = Stripe(process.env.STRIPE_SECRET_KEY);
 const parser    = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 
+const { extract } = require('@extractus/article-extractor');
+const https = require('https');
+
 /* ═══════════════════════════════════════════════
-   RSS FEEDS
+   SOURCES  — HN Algolia + RSS fallbacks
 ═══════════════════════════════════════════════ */
 const RSS_FEEDS = [
   { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'   },
@@ -65,12 +68,42 @@ function detectCategory(title, summary) {
 ═══════════════════════════════════════════════ */
 const cache = { articles: [], lastUpdated: null, isRefreshing: false };
 
+/* ── fetch full article body from a URL ── */
+async function fetchArticleBody(url) {
+  try {
+    const result = await Promise.race([
+      extract(url, {}, { headers: { 'User-Agent': 'KidsAIBuzz/1.0 (+https://ai-news-buzz.onrender.com)' } }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+    ]);
+    if (!result?.content) return '';
+    // strip HTML tags, collapse whitespace
+    return result.content.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0, 3000);
+  } catch { return ''; }
+}
+
+/* ── fetch top AI stories from HN Algolia ── */
+async function fetchHNStories() {
+  try {
+    const queries = ['artificial intelligence','machine learning','openai','robotics','LLM','GPT','deepmind','anthropic'];
+    const q = queries[Math.floor(Math.random() * queries.length)];
+    const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=20&numericFilters=points>50`;
+    const res = await new Promise((resolve, reject) => {
+      https.get(url, { headers:{'User-Agent':'KidsAIBuzz/1.0'} }, (r) => {
+        let data=''; r.on('data',c=>data+=c); r.on('end',()=>resolve(JSON.parse(data))); r.on('error',reject);
+      }).on('error',reject);
+    });
+    return (res.hits||[])
+      .filter(h => h.url && h.title && h.title.length > 15)
+      .map(h => ({ title: h.title, link: h.url, pubDate: h.created_at, source: 'HN', hnPoints: h.points }));
+  } catch(e) { console.warn('⚠ HN fetch failed:', e.message); return []; }
+}
+
+/* ── scrape RSS feeds ── */
 async function scrapeFeed(feed) {
   try {
     const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0,10).map(i => ({
+    return (r.items || []).slice(0,8).map(i => ({
       title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
-      summary: (i.contentSnippet || i.description || '').replace(/<[^>]+>/g,'').slice(0,500).trim(),
       link:    i.link || '',
       pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
       source:  feed.source,
@@ -78,18 +111,41 @@ async function scrapeFeed(feed) {
   } catch(e) { console.warn(`⚠ ${feed.source}: ${e.message}`); return []; }
 }
 
+/* ── main scrape: HN + RSS, then fetch full bodies ── */
 async function scrapeAllFeeds() {
-  console.log('📡 Scraping feeds...');
-  const settled = await Promise.allSettled(RSS_FEEDS.map(scrapeFeed));
-  const all = settled.filter(r=>r.status==='fulfilled').flatMap(r=>r.value).filter(a=>a.title?.length>15);
+  console.log('📡 Fetching stories...');
+  const [hnStories, ...rssResults] = await Promise.allSettled([
+    fetchHNStories(),
+    ...RSS_FEEDS.map(scrapeFeed)
+  ]);
+
+  const hn  = hnStories.status === 'fulfilled' ? hnStories.value : [];
+  const rss = rssResults.filter(r=>r.status==='fulfilled').flatMap(r=>r.value);
+  const all = [...hn, ...rss].filter(a=>a.title?.length>15);
+
+  // deduplicate
   const seen=new Set(), dedup=[];
   for(const item of all){
     const key=item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,50);
     if(!seen.has(key)){ seen.add(key); dedup.push(item); }
   }
   dedup.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate));
-  console.log(`   → ${dedup.slice(0,24).length} articles`);
-  return dedup.slice(0,24);
+  const top = dedup.slice(0,20);
+
+  console.log(`   → ${top.length} stories, fetching full article bodies...`);
+
+  // fetch full body for each article in parallel (with concurrency limit)
+  const CONCURRENCY = 5;
+  const withBodies = [];
+  for(let i=0;i<top.length;i+=CONCURRENCY){
+    const chunk = top.slice(i,i+CONCURRENCY);
+    const bodies = await Promise.all(chunk.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve('')));
+    chunk.forEach((a,j) => withBodies.push({ ...a, body: bodies[j] || '' }));
+  }
+
+  const goodArticles = withBodies.filter(a => a.body.length > 200 || a.title.length > 20);
+  console.log(`   → ${goodArticles.length} articles with full content`);
+  return goodArticles.slice(0,16);
 }
 
 async function rewriteForKids(rawArticles) {
@@ -99,22 +155,27 @@ async function rewriteForKids(rawArticles) {
   for(let i=0;i<rawArticles.length;i+=BATCH){
     const batch=rawArticles.slice(i,i+BATCH);
     const startId=i+1;
-    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\nSnippet: ${a.summary||'(none)'}`).join('\n\n');
-    const prompt=`You are a fun kids science writer. Using the news stories below as your source material, write completely original articles in your own voice — like a kids magazine writer who heard about the story and is telling it fresh. Do NOT credit any source or publication.
+    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,2000) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
+    const prompt=`You are a fun kids science writer for a magazine. Using the full article content below as your source material, write completely original articles in your own voice. Do NOT credit any source or publication.
 
 STORIES:
 ${articleList}
 
 Return ONLY a valid JSON array, no markdown.
-Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": { "young": { "summary": "2 simple sentences for age 7 written in your own words", "full": "5-6 simple sentences telling the whole story for age 7, fun and engaging", "wow": "one specific surprising fact from THIS story, max 10 words" }, "middle": { "summary": "2-3 sentences for age 10 written in your own words", "full": "6-8 sentences telling the whole story for age 10, include interesting details", "wow": "one specific interesting fact from THIS story, max 14 words" }, "older": { "summary": "3 sentences for age 13 written in your own words", "full": "8-10 sentences telling the whole story for age 13, include context and implications", "wow": "one specific insightful fact from THIS story, max 18 words" } } }
+Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": {
+  "young":  { "summary": "2 simple sentences for age 7", "full": "3 short paragraphs (2-3 sentences each) telling the whole story for age 7. Use \\n\\n to separate paragraphs.", "wow": "one specific surprising fact, max 10 words" },
+  "middle": { "summary": "2-3 sentences for age 10", "full": "4 paragraphs (3-4 sentences each) for age 10 with interesting details. Use \\n\\n between paragraphs.", "wow": "one specific interesting fact, max 14 words" },
+  "older":  { "summary": "3 sentences for age 13", "full": "5 paragraphs (3-5 sentences each) for age 13 with context, details, and implications. Use \\n\\n between paragraphs.", "wow": "one specific insightful fact, max 18 words" }
+} }
 
-CRITICAL rules for "wow":
-- Every wow must be SPECIFIC to that individual story — a real number, a real thing that happened, or a surprising detail
-- NEVER use generic phrases like "big deal for AI", "AI is amazing", "this could change AI", "AI is doing great things"
-- Good examples: "The robot can fold 50 shirts per hour", "The model was trained on 10 trillion words"
-Stay accurate, positive, age-appropriate.`;
+CRITICAL:
+- "full" must have MULTIPLE PARAGRAPHS separated by \\n\\n
+- Every wow must be SPECIFIC to that story — a real number, name, or detail
+- NEVER use "big deal for AI", "AI is amazing", "this could change AI"
+- Base everything on the actual article content provided
+- Stay accurate, positive, age-appropriate`;
     try {
-      const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:3000, messages:[{role:'user',content:prompt}] });
+      const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:6000, messages:[{role:'user',content:prompt}] });
       let text=(msg.content||[]).map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
       const s=text.indexOf('['),e=text.lastIndexOf(']');
       if(s===-1||e===-1) throw new Error('No JSON');
@@ -126,7 +187,7 @@ Stay accurate, positive, age-appropriate.`;
     } catch(err) {
       console.warn(`⚠ Batch failed: ${err.message}`);
       for(const a of batch) results.push({ id:startId+batch.indexOf(a), headline:a.title, category:detectCategory(a.title,a.summary), source:a.source, link:a.link, pubDate:a.pubDate,
-        levels:{ young:{summary:a.summary.slice(0,150)||a.title,wow:'Scientists worked really hard to build this.'}, middle:{summary:a.summary.slice(0,250)||a.title,wow:'Researchers spent months testing before releasing it.'}, older:{summary:a.summary.slice(0,400)||a.title,wow:'The team ran thousands of experiments to get here.'} } });
+        levels:{ young:{summary:a.summary.slice(0,150)||a.title, full:a.summary||a.title, wow:'Scientists worked really hard to build this.'}, middle:{summary:a.summary.slice(0,250)||a.title, full:a.summary||a.title, wow:'Researchers spent months testing before releasing it.'}, older:{summary:a.summary.slice(0,400)||a.title, full:a.summary||a.title, wow:'The team ran thousands of experiments to get here.'} } });
     }
   }
   console.log(`   → ${results.length} articles ready`);
@@ -338,7 +399,7 @@ app.get('/api/news', (req, res) => {
 /* ─── STATUS / ADMIN ──────────────────────────── */
 app.get('/api/promo', (req, res) => {
   const isPromo = !!process.env.STRIPE_PROMO_PRICE_ID && new Date() < new Date('2026-06-01T00:00:00Z');
-  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.79', promoEnds: '2026-06-01' });
 });
 
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
