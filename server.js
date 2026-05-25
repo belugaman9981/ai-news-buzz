@@ -338,7 +338,7 @@ app.get('/api/news', (req, res) => {
 /* ─── STATUS / ADMIN ──────────────────────────── */
 app.get('/api/promo', (req, res) => {
   const isPromo = !!process.env.STRIPE_PROMO_PRICE_ID && new Date() < new Date('2026-06-01T00:00:00Z');
-  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.79', promoEnds: '2026-06-01' });
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
 });
 
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
