@@ -31,13 +31,18 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .promo-feedback{font-size:13px;font-weight:800;margin-top:.6rem;min-height:18px}
 .promo-feedback.success{color:#1CC99A}
 .promo-feedback.error{color:#FF3B3B}
-background:linear-gradient(90deg,#FF6B6B,#FF8E53);color:#fff;text-align:center;padding:10px 1rem;font-size:14px;font-weight:800;display:none}
+.promo-banner{position:relative;z-index:10;background:linear-gradient(90deg,#FF3B3B,#FF6B35);color:#fff;text-align:center;padding:1.5rem 2rem;display:none}
 .promo-banner.show{display:block}
-.promo-banner span{background:rgba(255,255,255,.2);border-radius:99px;padding:2px 10px;margin-left:8px}
+.promo-banner-inner{max-width:700px;margin:0 auto}
+.promo-banner-title{font-family:'Lilita One',sans-serif;font-size:clamp(22px,4vw,36px);letter-spacing:.5px;margin-bottom:.35rem}
+.promo-banner-sub{font-size:16px;font-weight:700;opacity:.9;margin-bottom:1rem}
+.promo-banner-countdown{display:inline-block;background:rgba(0,0,0,.2);border-radius:99px;padding:5px 18px;font-size:14px;font-weight:800;letter-spacing:.5px}
+.promo-banner a{color:#fff;text-decoration:none;background:rgba(255,255,255,.2);border-radius:99px;padding:8px 20px;font-weight:800;font-size:15px;display:inline-block;margin-top:.75rem;border:2px solid rgba(255,255,255,.4)}
+.promo-banner a:hover{background:rgba(255,255,255,.3)}
 
-.blob-1{width:420px;height:420px;background:var(--purple);opacity:.13;top:-120px;left:-100px}
-.blob-2{width:320px;height:320px;background:var(--teal);opacity:.11;bottom:8%;right:-80px}
-.blob-3{width:200px;height:200px;background:var(--amber);opacity:.09;top:50%;left:42%}
+.blob-1{width:280px;height:280px;background:var(--purple);opacity:.10;top:-80px;left:-80px}
+.blob-2{width:220px;height:220px;background:var(--teal);opacity:.08;bottom:5%;right:-60px}
+.blob-3{width:150px;height:150px;background:var(--amber);opacity:.07;top:50%;left:42%}
 
 /* HEADER */
 .hdr{position:sticky;top:0;z-index:200;height:64px;background:rgba(245,243,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 2rem}
@@ -197,7 +202,12 @@ background:linear-gradient(90deg,#FF6B6B,#FF8E53);color:#fff;text-align:center;p
 <div class="blob blob-3" aria-hidden="true"></div>
 
 <div class="promo-banner" id="promoBanner">
-  🎉 Limited time offer — subscribe before June 1st for just <span>$1.99/month!</span> &nbsp;·&nbsp; <a href="#pricing" style="color:#fff;text-decoration:underline">Grab the deal →</a>
+  <div class="promo-banner-inner">
+    <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
+    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
+    <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2025</div><br>
+    <a href="#" onclick="promoCodeApplied=true;subscribe();return false">Grab the deal now →</a>
+  </div>
 </div>
 
 <!-- HEADER -->
