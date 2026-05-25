@@ -228,7 +228,11 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 
 // POST /api/stripe/checkout  — create checkout session
 app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
-  if (!PRICE_ID) return res.status(500).json({ error: 'Stripe price ID not configured' });
+  const PROMO_PRICE_ID = process.env.STRIPE_PROMO_PRICE_ID;
+  const promoRequested = req.body?.usePromo === true;
+  const isPromo = promoRequested && !!PROMO_PRICE_ID && new Date() < new Date('2025-06-01T00:00:00Z');
+  const activePriceId = isPromo ? PROMO_PRICE_ID : PRICE_ID;
+  if (!activePriceId) return res.status(500).json({ error: 'Stripe price ID not configured' });
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.subscriptionStatus === 'active') return res.status(400).json({ error: 'Already subscribed' });
@@ -239,7 +243,7 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
       payment_method_types: ['card'],
       customer_email: user.stripeCustomerId ? undefined : user.email,
       customer: user.stripeCustomerId || undefined,
-      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      line_items: [{ price: activePriceId, quantity: 1 }],
       success_url: `${APP_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${APP_URL}/?canceled=1`,
       metadata:    { userId: user.id },
@@ -332,6 +336,11 @@ app.get('/api/news', (req, res) => {
 });
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
+app.get('/api/promo', (req, res) => {
+  const isPromo = !!process.env.STRIPE_PROMO_PRICE_ID && new Date() < new Date('2025-06-01T00:00:00Z');
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.79', promoEnds: '2025-06-01' });
+});
+
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
 
 app.post('/api/admin/refresh', (req,res) => {

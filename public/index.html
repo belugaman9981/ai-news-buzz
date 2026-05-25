@@ -21,7 +21,20 @@
 }
 html{scroll-behavior:smooth}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-.blob{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+.promo-code-box{background:#fff;border:3px solid #FF3B3B;border-radius:16px;padding:1.25rem 1.5rem;margin:1rem 0;box-shadow:0 4px 20px rgba(255,59,59,.3)}
+.promo-code-title{font-family:'Lilita One',sans-serif;font-size:18px;color:#FF3B3B;margin-bottom:.85rem;letter-spacing:.3px}
+.promo-code-row{display:flex;gap:8px}
+.promo-input{flex:1;padding:11px 14px;border-radius:99px;border:2px solid #FF3B3B;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);outline:none;text-transform:uppercase;letter-spacing:1px}
+.promo-input:focus{box-shadow:0 0 0 3px rgba(255,59,59,.2)}
+.promo-apply-btn{padding:11px 20px;border-radius:99px;border:none;background:#FF3B3B;color:#fff;font-family:'Lilita One',sans-serif;font-size:16px;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.promo-apply-btn:hover{opacity:.88}
+.promo-feedback{font-size:13px;font-weight:800;margin-top:.6rem;min-height:18px}
+.promo-feedback.success{color:#1CC99A}
+.promo-feedback.error{color:#FF3B3B}
+background:linear-gradient(90deg,#FF6B6B,#FF8E53);color:#fff;text-align:center;padding:10px 1rem;font-size:14px;font-weight:800;display:none}
+.promo-banner.show{display:block}
+.promo-banner span{background:rgba(255,255,255,.2);border-radius:99px;padding:2px 10px;margin-left:8px}
+
 .blob-1{width:420px;height:420px;background:var(--purple);opacity:.13;top:-120px;left:-100px}
 .blob-2{width:320px;height:320px;background:var(--teal);opacity:.11;bottom:8%;right:-80px}
 .blob-3{width:200px;height:200px;background:var(--amber);opacity:.09;top:50%;left:42%}
@@ -183,6 +196,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <div class="blob blob-2" aria-hidden="true"></div>
 <div class="blob blob-3" aria-hidden="true"></div>
 
+<div class="promo-banner" id="promoBanner">
+  🎉 Limited time offer — subscribe before June 1st for just <span>$1.99/month!</span> &nbsp;·&nbsp; <a href="#pricing" style="color:#fff;text-decoration:underline">Grab the deal →</a>
+</div>
+
 <!-- HEADER -->
 <header class="hdr">
   <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
@@ -245,7 +262,17 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
     <h2>Unlock all stories!</h2>
     <p>You're reading 3 of <span id="totalCount">24</span> stories. Subscribe to read everything!</p>
-    <div class="price-tag">$3.79<span>/month</span></div>
+    <div class="price-tag" id="paywallPrice">$3.79<span>/month</span></div>
+    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.79/mo</div>
+
+    <div class="promo-code-box" id="promoBox">
+      <div class="promo-code-title">🔥 GET HALF PRICE — ENTER PROMO CODE BELOW!</div>
+      <div class="promo-code-row">
+        <input class="promo-input" id="promoInput" type="text" placeholder="Enter code..." maxlength="20">
+        <button class="promo-apply-btn" onclick="applyPromo()">Apply</button>
+      </div>
+      <div class="promo-feedback" id="promoFeedback"></div>
+    </div>
     <div class="perks">
       <span class="perk">✅ All 24+ articles</span>
       <span class="perk">✅ Updated every 2 hours</span>
@@ -276,8 +303,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
     <div class="plan featured">
       <div class="plan-label">⭐ Pro</div>
-      <div class="plan-price">$3.79<small>/mo</small></div>
-      <div class="plan-desc">Full access, cancel anytime</div>
+      <div class="plan-price" id="planPrice">$3.79<small>/mo</small></div>
+      <div class="plan-desc" id="planDesc">Full access, cancel anytime</div>
       <ul class="plan-features">
         <li>All 24+ fresh articles</li>
         <li>Updated every 2 hours</li>
@@ -441,7 +468,7 @@ async function loadNews(){
 async function subscribe(){
   if(!token){openModal('signup');return;}
   try{
-    const r=await fetch('/api/stripe/checkout',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'}});
+    const r=await fetch('/api/stripe/checkout',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'},body:JSON.stringify({usePromo: promoCodeApplied})});
     const d=await r.json();
     if(d.url) window.location.href=d.url;
     else alert(d.error||'Something went wrong');
@@ -494,10 +521,48 @@ async function submitAuth(){
 
 function logout(){token=null;localStorage.removeItem('kab_token');isSubscribed=false;document.getElementById('authButtons').style.display='flex';document.getElementById('userArea').style.display='none';loadNews();}
 
+/* ── promo code ── */
+let promoCodeApplied = false;
+const VALID_PROMO = 'CODINGMINDS';
+
+function applyPromo(){
+  const code = document.getElementById('promoInput').value.trim().toUpperCase();
+  const fb   = document.getElementById('promoFeedback');
+  if(code === VALID_PROMO){
+    promoCodeApplied = true;
+    fb.className = 'promo-feedback success';
+    fb.textContent = '✅ Code applied! Your discount is locked in.';
+    document.getElementById('promoInput').disabled = true;
+    document.querySelector('.promo-apply-btn').disabled = true;
+    document.getElementById('paywallPrice').innerHTML = `$1.99<span>/month</span>`;
+    document.getElementById('paywallPromoNote').style.display = 'block';
+  } else {
+    promoCodeApplied = false;
+    fb.className = 'promo-feedback error';
+    fb.textContent = '❌ Invalid code — try again!';
+  }
+}
+
+
+async function checkPromo(){
+  try{
+    const r=await fetch('/api/promo');
+    const d=await r.json();
+    if(d.isPromo){
+      document.getElementById('promoBanner').classList.add('show');
+      document.getElementById('paywallPrice').innerHTML=`$1.99<span>/month</span>`;
+      document.getElementById('paywallPromoNote').style.display='block';
+      document.getElementById('planPrice').innerHTML=`$1.99<small>/mo</small>`;
+      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st! Then $3.79/mo';
+    }
+  }catch{}
+}
+
 /* ── init ── */
 if(new URLSearchParams(window.location.search).get('canceled')==='1'){
   setTimeout(()=>alert('No worries! You can subscribe anytime.'),500);
 }
+checkPromo();
 checkSession().then(loadNews);
 setInterval(loadNews,5*60*1000);
 </script>
