@@ -300,17 +300,19 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
   if (user.subscriptionStatus === 'active') return res.status(400).json({ error: 'Already subscribed' });
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       mode: 'subscription',
       payment_method_types: ['card'],
       customer_email: user.stripeCustomerId ? undefined : user.email,
       customer: user.stripeCustomerId || undefined,
       line_items: [{ price: PRICE_ID, quantity: 1 }],
-      discounts: isPromo ? [{ coupon: PROMO_COUPON_ID }] : [],
+      subscription_data: { trial_period_days: 7 },
       success_url: `${APP_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${APP_URL}/?canceled=1`,
       metadata:    { userId: user.id },
-    });
+    };
+    if (isPromo) sessionParams.discounts = [{ coupon: PROMO_COUPON_ID }];
+    const session = await stripe.checkout.sessions.create(sessionParams);
     res.json({ url: session.url });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -382,9 +384,9 @@ app.get('/api/news', (req, res) => {
   if(category!=='all') articles=articles.filter(a=>a.category===category);
 
   // free users get first 3 as preview
-  const limit      = subscribed ? 30 : 3;
+  const limit      = subscribed ? 30 : 6;
   const sliced     = articles.slice(0, limit);
-  const hasMore    = !subscribed && cache.articles.length > 3;
+  const hasMore    = !subscribed && cache.articles.length > 6;
 
   const shaped = sliced.map(a => ({
     id:       a.id,
