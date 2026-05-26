@@ -287,8 +287,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
     <h2>Unlock all stories!</h2>
     <p>You're reading 3 of <span id="totalCount">24</span> stories. Subscribe to read everything!</p>
-    <div class="price-tag" id="paywallPrice">$3.79<span>/month</span></div>
-    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.79/mo</div>
+    <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
+    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
 
     <div class="promo-code-box" id="promoBox">
       <div class="promo-code-title">🔥 GET HALF PRICE — ENTER PROMO CODE BELOW!</div>
@@ -328,7 +328,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
     <div class="plan featured">
       <div class="plan-label">⭐ Pro</div>
-      <div class="plan-price" id="planPrice">$3.79<small>/mo</small></div>
+      <div class="plan-price" id="planPrice">$3.99<small>/mo</small></div>
       <div class="plan-desc" id="planDesc">Full access, cancel anytime</div>
       <ul class="plan-features">
         <li>All 24+ fresh articles</li>
@@ -619,7 +619,7 @@ async function checkPromo(){
       document.getElementById('paywallPrice').innerHTML=`$1.99<span>/month</span>`;
       document.getElementById('paywallPromoNote').style.display='block';
       document.getElementById('planPrice').innerHTML=`$1.99<small>/mo</small>`;
-      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.79/mo';
+      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.99/mo';
     }
   }catch{}
 }
