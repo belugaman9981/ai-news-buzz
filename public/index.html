@@ -219,7 +219,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <div class="promo-banner" id="promoBanner">
   <div class="promo-banner-inner">
     <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
-    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
+    <div class="promo-banner-sub">That's half price! Subscribe before June 1st and lock it in forever *.</div>
     <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2026</div><br>
     <a href="#" onclick="promoCodeApplied=true;subscribe();return false">Grab the deal now →</a>
   </div>
@@ -288,7 +288,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <h2>Unlock all stories!</h2>
     <p>You're reading 3 of <span id="totalCount">24</span> stories. Subscribe to read everything!</p>
     <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
-    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
+    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo*</div>
 
     <div class="promo-code-box" id="promoBox">
       <div class="promo-code-title">🔥 GET HALF PRICE — ENTER PROMO CODE BELOW!</div>
@@ -346,7 +346,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   <div class="ftr-g">
     <div class="ftr-brand">
       <a class="logo" href="/"><span>✨</span>Kids AI <span class="bz">Buzz</span></a>
-      <p>Real AI news from 8 top sources, rewritten so every kid can understand and love science.</p>
+      <p>Real AI news from 8 top sources, rewritten so every kid can understand and love science.
+
+        * Only with Special Promotional Code From Coding Minds
+      </p>
     </div>
     <div class="ftr-col">
       <h4>Topics</h4>
@@ -619,7 +622,7 @@ async function checkPromo(){
       document.getElementById('paywallPrice').innerHTML=`$1.99<span>/month</span>`;
       document.getElementById('paywallPromoNote').style.display='block';
       document.getElementById('planPrice').innerHTML=`$1.99<small>/mo</small>`;
-      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.99/mo';
+      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.99/mo*';
     }
   }catch{}
 }
