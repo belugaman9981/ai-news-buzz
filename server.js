@@ -30,8 +30,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const stripe    = Stripe(process.env.STRIPE_SECRET_KEY);
 const parser    = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 
-const { extract } = require('@extractus/article-extractor');
-const https = require('https');
+const axios = require('axios');
 
 /* ═══════════════════════════════════════════════
    SOURCES  — HN Algolia + RSS fallbacks
@@ -71,13 +70,21 @@ const cache = { articles: [], lastUpdated: null, isRefreshing: false };
 /* ── fetch full article body from a URL ── */
 async function fetchArticleBody(url) {
   try {
-    const result = await Promise.race([
-      extract(url, {}, { headers: { 'User-Agent': 'KidsAIBuzz/1.0 (+https://ai-news-buzz.onrender.com)' } }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
-    ]);
-    if (!result?.content) return '';
-    // strip HTML tags, collapse whitespace
-    return result.content.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0, 3000);
+    const res = await axios.get(url, {
+      timeout: 8000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0)' },
+      maxContentLength: 500000,
+    });
+    const html = res.data || '';
+    // strip tags, scripts, styles
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 3000);
+    return text;
   } catch { return ''; }
 }
 
@@ -87,14 +94,10 @@ async function fetchHNStories() {
     const queries = ['artificial intelligence','machine learning','openai','robotics','LLM','GPT','deepmind','anthropic'];
     const q = queries[Math.floor(Math.random() * queries.length)];
     const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=20&numericFilters=points>50`;
-    const res = await new Promise((resolve, reject) => {
-      https.get(url, { headers:{'User-Agent':'KidsAIBuzz/1.0'} }, (r) => {
-        let data=''; r.on('data',c=>data+=c); r.on('end',()=>resolve(JSON.parse(data))); r.on('error',reject);
-      }).on('error',reject);
-    });
-    return (res.hits||[])
+    const res = await axios.get(url, { timeout: 8000 });
+    return (res.data.hits || [])
       .filter(h => h.url && h.title && h.title.length > 15)
-      .map(h => ({ title: h.title, link: h.url, pubDate: h.created_at, source: 'HN', hnPoints: h.points }));
+      .map(h => ({ title: h.title, link: h.url, pubDate: h.created_at, source: 'HN' }));
   } catch(e) { console.warn('⚠ HN fetch failed:', e.message); return []; }
 }
 
