@@ -221,7 +221,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
     <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
     <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2026</div><br>
-    <a href="#" onclick="subscribeWithPromo();return false">Grab the deal now →</a>
+    <a href="#" onclick="document.getElementById('promoBox').scrollIntoView({behavior:'smooth'});return false">Enter promo code to get the deal →</a>
   </div>
 </div>
 
@@ -504,16 +504,16 @@ async function loadNews(){
 }
 
 /* ── subscribe ── */
-async function subscribe(usePromo=false){
+async function subscribe(){
   if(!token){openModal('signup');return;}
   try{
-    const r=await fetch('/api/stripe/checkout',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'},body:JSON.stringify({usePromo: usePromo || promoCodeApplied})});
+    const r=await fetch('/api/stripe/checkout',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'},body:JSON.stringify({usePromo: promoCodeApplied})});
     const d=await r.json();
     if(d.url) window.location.href=d.url;
     else alert(d.error||'Something went wrong');
   }catch(e){alert('Could not start checkout: '+e.message);}
 }
-function subscribeWithPromo(){ subscribe(true); }
+function subscribeWithPromo(){ subscribe(); }
 async function manageSubscription(){
   try{
     const r=await fetch('/api/stripe/portal',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'}});

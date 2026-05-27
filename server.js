@@ -83,7 +83,7 @@ async function fetchArticleBody(url) {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 3000);
+      .slice(0, 5000);
     return text;
   } catch { return ''; }
 }
@@ -154,11 +154,11 @@ async function scrapeAllFeeds() {
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
   console.log(`✍️  Rewriting ${rawArticles.length} articles...`);
-  const BATCH=12; const results=[];
+  const BATCH=6; const results=[];
   for(let i=0;i<rawArticles.length;i+=BATCH){
     const batch=rawArticles.slice(i,i+BATCH);
     const startId=i+1;
-    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,2000) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
+    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,4000) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
     const prompt=`You are a fun kids science writer for a magazine. Using the full article content below as your source material, write completely original articles in your own voice. Do NOT credit any source or publication.
 
 STORIES:
@@ -166,19 +166,21 @@ ${articleList}
 
 Return ONLY a valid JSON array, no markdown.
 Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": {
-  "young":  { "summary": "2 simple sentences for age 7", "full": "3 short paragraphs (2-3 sentences each) telling the whole story for age 7. Use \\n\\n to separate paragraphs.", "wow": "one specific surprising fact, max 10 words" },
-  "middle": { "summary": "2-3 sentences for age 10", "full": "4 paragraphs (3-4 sentences each) for age 10 with interesting details. Use \\n\\n between paragraphs.", "wow": "one specific interesting fact, max 14 words" },
-  "older":  { "summary": "3 sentences for age 13", "full": "5 paragraphs (3-5 sentences each) for age 13 with context, details, and implications. Use \\n\\n between paragraphs.", "wow": "one specific insightful fact, max 18 words" }
+  "young":  { "summary": "2 simple sentences for age 7", "full": "Write 4-5 paragraphs (3-4 sentences each) for age 7. Use very simple words. Make it fun and exciting like a story. Use \\n\\n between every paragraph.", "wow": "one specific surprising fact, max 10 words" },
+  "middle": { "summary": "2-3 sentences for age 10", "full": "Write 6-7 paragraphs (4-5 sentences each) for age 10. Include what happened, why it matters, how it works, who did it, and what comes next. Use \\n\\n between every paragraph.", "wow": "one specific interesting fact, max 14 words" },
+  "older":  { "summary": "3 sentences for age 13", "full": "Write 8-10 paragraphs (4-6 sentences each) for age 13. Include background context, what happened, the technical details, expert reactions, real world impact, and future implications. Use \\n\\n between every paragraph.", "wow": "one specific insightful fact, max 18 words" }
 } }
 
 CRITICAL:
-- "full" must have MULTIPLE PARAGRAPHS separated by \\n\\n
-- Every wow must be SPECIFIC to that story — a real number, name, or detail
+- "full" must be LONG — aim for roughly 400-600 words, like a full magazine article
+- MUST have multiple paragraphs separated by \\n\\n — never one big block of text
+- Give each paragraph its own focus: intro, background, what happened, how it works, why it matters, what's next
+- Every wow must be SPECIFIC — a real number, name, or detail from the story
 - NEVER use "big deal for AI", "AI is amazing", "this could change AI"
 - Base everything on the actual article content provided
 - Stay accurate, positive, age-appropriate`;
     try {
-      const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:6000, messages:[{role:'user',content:prompt}] });
+      const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:8000, messages:[{role:'user',content:prompt}] });
       let text=(msg.content||[]).map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
       const s=text.indexOf('['),e=text.lastIndexOf(']');
       if(s===-1||e===-1) throw new Error('No JSON');
