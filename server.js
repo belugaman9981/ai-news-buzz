@@ -415,10 +415,11 @@ app.get('/api/news', (req, res) => {
   let articles = cache.articles;
   if(category!=='all') articles=articles.filter(a=>a.category===category);
 
-  // everyone gets 6 random article headlines/summaries free
-  // full article text only for subscribers
+  // everyone gets 6 fully readable random articles
+  // plus ALL other articles as locked previews (headline + teaser only)
   const shuffled = [...articles].sort(() => Math.random() - .5);
-  const freeArticles  = shuffled.slice(0, 6);
+  const freeArticles   = shuffled.slice(0, 6);
+  const lockedArticles = subscribed ? [] : shuffled.slice(6);
   const sliced = subscribed ? articles.slice(0, 63) : freeArticles;
   const hasMore = !subscribed && articles.length > 6;
 
@@ -428,11 +429,24 @@ app.get('/api/news', (req, res) => {
     category: a.category,
     pubDate:  a.pubDate,
     summary:  a.levels?.[level]?.summary || '',
-    full:     (subscribed || i < 6) ? (a.levels?.[level]?.full || '') : '',
+    full:     a.levels?.[level]?.full || '',
     wow:      a.levels?.[level]?.wow || '',
+    locked:   false,
   }));
 
-  res.json({ ok:true, count:shaped.length, total:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, hasMore, articles:shaped });
+  // add locked previews for non-subscribers
+  const lockedShaped = lockedArticles.map(a => ({
+    id:       a.id,
+    headline: a.headline,
+    category: a.category,
+    pubDate:  a.pubDate,
+    summary:  (a.levels?.[level]?.summary || '').split('.')[0] + '...', // first sentence only
+    full:     '',
+    wow:      '',
+    locked:   true,
+  }));
+
+  res.json({ ok:true, count:shaped.length, total:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, hasMore, articles:[...shaped, ...lockedShaped] });
 });
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
