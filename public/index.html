@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kids AI Buzz — AI News for Kids</title>
-<meta name="description" content="The coolest AI news explained for kids — robots, art, science, gaming & more!">
-<meta name="theme-color" content="#7C6FF7">
+<meta name="description" content="The coolest AI news, explained for kids — robots, art, science, gaming & more!">
+<meta property="og:title"       content="Kids AI Buzz">
+<meta property="og:description" content="Real AI stories from around the web, made fun and easy for kids.">
+<meta name="theme-color"        content="#7C6FF7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lilita+One&display=swap" rel="stylesheet">
@@ -13,226 +15,173 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --purple:#7C6FF7;--purple-lt:#EAE8FF;--purple-dk:#4538C9;
-  --teal:#1CC99A;--teal-lt:#D4F7ED;--coral:#FF6B6B;--coral-lt:#FFE8E8;
-  --amber:#FFBB33;--amber-lt:#FFF5D0;--blue:#3E9BFF;--blue-lt:#DCEEFF;
-  --pink:#F06292;--pink-lt:#FFE4EE;--green:#52C97A;--green-lt:#DFF7E8;
+  --teal:#1CC99A;--teal-lt:#D4F7ED;
+  --coral:#FF6B6B;--coral-lt:#FFE8E8;
+  --amber:#FFBB33;--amber-lt:#FFF5D0;
+  --blue:#3E9BFF;--blue-lt:#DCEEFF;
+  --pink:#F06292;--pink-lt:#FFE4EE;
+  --green:#52C97A;--green-lt:#DFF7E8;
   --bg:#F5F3FF;--surface:#fff;--text:#1A1035;--muted:#6B638A;--border:#E3DFF7;
   --r:20px;--r-sm:12px;
 }
 html{scroll-behavior:smooth}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-.promo-code-box{background:#fff;border:3px solid #FF3B3B;border-radius:16px;padding:1.25rem 1.5rem;margin:1rem 0;box-shadow:0 4px 20px rgba(255,59,59,.3)}
-.promo-code-title{font-family:'Lilita One',sans-serif;font-size:18px;color:#FF3B3B;margin-bottom:.85rem;letter-spacing:.3px}
-.promo-code-row{display:flex;gap:8px}
-.promo-input{flex:1;padding:11px 14px;border-radius:99px;border:2px solid #FF3B3B;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);outline:none;text-transform:uppercase;letter-spacing:1px}
-.promo-input:focus{box-shadow:0 0 0 3px rgba(255,59,59,.2)}
-.promo-apply-btn{padding:11px 20px;border-radius:99px;border:none;background:#FF3B3B;color:#fff;font-family:'Lilita One',sans-serif;font-size:16px;cursor:pointer;transition:opacity .15s;white-space:nowrap}
-.promo-apply-btn:hover{opacity:.88}
-.promo-feedback{font-size:13px;font-weight:800;margin-top:.6rem;min-height:18px}
-.promo-feedback.success{color:#1CC99A}
-.promo-feedback.error{color:#FF3B3B}
-.promo-banner{position:relative;z-index:10;background:linear-gradient(90deg,#FF3B3B,#FF6B35);color:#fff;text-align:center;padding:1.5rem 2rem;display:none}
-.promo-banner.show{display:block}
-.promo-banner-inner{max-width:700px;margin:0 auto}
-.promo-banner-title{font-family:'Lilita One',sans-serif;font-size:clamp(22px,4vw,36px);letter-spacing:.5px;margin-bottom:.35rem}
-.promo-banner-sub{font-size:16px;font-weight:700;opacity:.9;margin-bottom:1rem}
-.promo-banner-countdown{display:inline-block;background:rgba(0,0,0,.2);border-radius:99px;padding:5px 18px;font-size:14px;font-weight:800;letter-spacing:.5px}
-.promo-banner a{color:#fff;text-decoration:none;background:rgba(255,255,255,.2);border-radius:99px;padding:8px 20px;font-weight:800;font-size:15px;display:inline-block;margin-top:.75rem;border:2px solid rgba(255,255,255,.4)}
-.promo-banner a:hover{background:rgba(255,255,255,.3)}
 
+/* blobs */
 .blob{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
-.blob-1{width:280px;height:280px;background:var(--purple);opacity:.10;top:-80px;left:-80px}
-.blob-2{width:220px;height:220px;background:var(--teal);opacity:.08;bottom:5%;right:-60px}
-.blob-3{width:150px;height:150px;background:var(--amber);opacity:.07;top:50%;left:42%}
+.blob-1{width:420px;height:420px;background:var(--purple);opacity:.13;top:-120px;left:-100px}
+.blob-2{width:320px;height:320px;background:var(--teal);  opacity:.11;bottom:8%; right:-80px}
+.blob-3{width:200px;height:200px;background:var(--amber); opacity:.09;top:50%;   left:42%}
 
-/* HEADER */
-.hdr{position:sticky;top:0;z-index:200;height:64px;background:rgba(245,243,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 2rem}
+/* header */
+.hdr{position:sticky;top:0;z-index:200;height:64px;
+  background:rgba(245,243,255,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 2rem}
 .logo{font-family:'Lilita One',sans-serif;font-size:22px;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:7px}
 .logo .bz{color:var(--purple)}
 .ls{display:inline-block;animation:wiggle 3s ease-in-out infinite}
 @keyframes wiggle{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.18)}}
-.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.lu-badge{font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);border:1.5px solid var(--border);border-radius:99px;padding:4px 12px;white-space:nowrap}
-.dot{display:inline-block;width:7px;height:7px;background:var(--teal);border-radius:50%;margin-right:5px;vertical-align:middle;animation:pulse 2s ease-in-out infinite}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.lu-badge{font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);
+  border:1.5px solid var(--border);border-radius:99px;padding:4px 12px;white-space:nowrap}
+.dot{display:inline-block;width:7px;height:7px;background:var(--teal);border-radius:50%;
+  margin-right:5px;vertical-align:middle;animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.lvl-pill{display:flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--border);border-radius:99px;padding:5px 10px 5px 14px;font-size:13px;font-weight:700;color:var(--muted)}
-.lvl-pill select{border:none;background:transparent;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;color:var(--purple-dk);cursor:pointer;outline:none}
-.hdr-btn{padding:7px 16px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap}
-.hdr-btn:hover{border-color:var(--purple);color:var(--purple)}
-.hdr-btn.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
-.hdr-btn.primary:hover{opacity:.88}
-.hdr-user{font-size:13px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:8px}
-.sub-badge{background:var(--teal-lt);color:#0A6950;font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.5px}
+.lvl-pill{display:flex;align-items:center;gap:6px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:99px;padding:5px 10px 5px 14px;
+  font-size:13px;font-weight:700;color:var(--muted)}
+.lvl-pill select{border:none;background:transparent;font-family:'Nunito',sans-serif;
+  font-weight:700;font-size:13px;color:var(--purple-dk);cursor:pointer;outline:none}
 
-/* HERO */
+/* hero */
 .hero{position:relative;z-index:1;text-align:center;padding:4rem 2rem 2.5rem}
-.hero-badge{display:inline-block;background:var(--purple-lt);color:var(--purple-dk);font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:5px 16px;border-radius:99px;border:1.5px solid var(--purple);margin-bottom:1.2rem;animation:fadeUp .5s ease both}
-.hero h1{font-family:'Lilita One',sans-serif;font-size:clamp(34px,6vw,62px);line-height:1.1;animation:fadeUp .5s .1s ease both}
+.hero-badge{display:inline-block;background:var(--purple-lt);color:var(--purple-dk);
+  font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  padding:5px 16px;border-radius:99px;border:1.5px solid var(--purple);margin-bottom:1.2rem;
+  animation:fadeUp .5s ease both}
+.hero h1{font-family:'Lilita One',sans-serif;font-size:clamp(34px,6vw,62px);line-height:1.1;
+  animation:fadeUp .5s .1s ease both}
 .hero h1 .hl{color:var(--purple)}
-.hero p{font-size:18px;color:var(--muted);margin:1rem auto 0;max-width:520px;font-weight:600;animation:fadeUp .5s .2s ease both}
+.hero p{font-size:18px;color:var(--muted);margin:1rem auto 0;max-width:520px;font-weight:600;
+  animation:fadeUp .5s .2s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
-/* CATS */
-.cats{position:relative;z-index:1;display:flex;align-items:center;gap:8px;padding:0 2rem 1.5rem;flex-wrap:wrap;justify-content:center;animation:fadeUp .5s .3s ease both}
-.cat{display:flex;align-items:center;gap:5px;padding:8px 18px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .18s;white-space:nowrap}
+/* refresh btn */
+.refresh-row{position:relative;z-index:1;display:flex;justify-content:center;padding:0 0 1.5rem;
+  animation:fadeUp .5s .25s ease both}
+.rfbtn{display:flex;align-items:center;gap:8px;padding:10px 26px;border-radius:99px;border:none;
+  background:var(--purple);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;
+  cursor:pointer;box-shadow:0 4px 18px rgba(124,111,247,.4);transition:transform .15s,opacity .15s}
+.rfbtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 26px rgba(124,111,247,.5)}
+.rfbtn:disabled{opacity:.55;cursor:not-allowed}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+  border-radius:50%;animation:spin .7s linear infinite;display:none}
+.rfbtn.loading .spin{display:block}
+.rfbtn.loading .rf-icon{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* cats */
+.cats{position:relative;z-index:1;display:flex;align-items:center;gap:8px;
+  padding:0 2rem 1.5rem;flex-wrap:wrap;justify-content:center;
+  animation:fadeUp .5s .3s ease both}
+.cat{display:flex;align-items:center;gap:5px;padding:8px 18px;border-radius:99px;
+  border:1.5px solid var(--border);background:var(--surface);
+  font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;color:var(--muted);
+  cursor:pointer;transition:all .18s;white-space:nowrap}
 .cat:hover{border-color:var(--purple);color:var(--purple-dk);transform:translateY(-2px)}
 .cat.active{background:var(--purple);color:#fff;border-color:var(--purple);box-shadow:0 4px 14px rgba(124,111,247,.35)}
 
-/* GRID */
+/* grid */
 .grid-wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:0 1.5rem 5rem}
-.sec-lbl{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px}
+.sec-lbl{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px}
 .sec-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
 
-/* CARD */
-.card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1.4rem 1.5rem;display:flex;flex-direction:column;gap:12px;animation:pop .4s ease both;transition:transform .2s,box-shadow .2s}
+/* card */
+.card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);
+  padding:1.4rem 1.5rem;display:flex;flex-direction:column;gap:12px;
+  animation:pop .4s ease both;transition:transform .2s,box-shadow .2s;text-decoration:none;color:inherit}
 .card:hover{transform:translateY(-5px);box-shadow:0 16px 40px rgba(124,111,247,.15)}
 @keyframes pop{from{opacity:0;transform:scale(.95) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.card:nth-child(1){animation-delay:.04s}.card:nth-child(2){animation-delay:.08s}.card:nth-child(3){animation-delay:.12s}
-.card:nth-child(4){animation-delay:.16s}.card:nth-child(5){animation-delay:.20s}.card:nth-child(6){animation-delay:.24s}
+.card:nth-child(1){animation-delay:.04s}.card:nth-child(2){animation-delay:.08s}
+.card:nth-child(3){animation-delay:.12s}.card:nth-child(4){animation-delay:.16s}
+.card:nth-child(5){animation-delay:.20s}.card:nth-child(6){animation-delay:.24s}
+.card:nth-child(7){animation-delay:.28s}.card:nth-child(8){animation-delay:.32s}
+.card:nth-child(9){animation-delay:.36s}.card:nth-child(10){animation-delay:.40s}
+.card:nth-child(11){animation-delay:.44s}.card:nth-child(12){animation-delay:.48s}
 .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .c-ico{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
 .c-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .c-tag{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:4px 10px;border-radius:99px}
 .c-src{font-size:11px;font-weight:700;color:var(--muted)}
-.c-title{font-size:17px;font-weight:800;line-height:1.35;color:var(--text)}
+.c-title{font-size:17px;font-weight:800;line-height:1.35}
 .c-body{font-size:14px;line-height:1.7;color:var(--muted);font-weight:600;flex:1}
-.c-wow{display:flex;align-items:flex-start;gap:8px;background:var(--purple-lt);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;font-weight:700;color:var(--purple-dk);border-left:3px solid var(--purple)}
+.c-wow{display:flex;align-items:flex-start;gap:8px;background:var(--purple-lt);
+  border-radius:var(--r-sm);padding:10px 12px;font-size:13px;font-weight:700;
+  color:var(--purple-dk);border-left:3px solid var(--purple)}
 .c-wow-i{flex-shrink:0;font-size:15px;margin-top:1px}
-.c-link{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--purple);text-decoration:none;margin-top:2px}
+.c-link{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;
+  color:var(--purple);text-decoration:none;margin-top:2px}
 .c-link:hover{text-decoration:underline}
-.r-robots .c-ico{background:var(--teal-lt)}   .r-robots  .c-tag{background:var(--teal-lt);  color:#0A6950}
-.r-art    .c-ico{background:var(--pink-lt)}   .r-art     .c-tag{background:var(--pink-lt);  color:#A0205A}
-.r-science.c-ico{background:var(--blue-lt)}   .r-science .c-tag{background:var(--blue-lt);  color:#135EA8}
-.r-gaming .c-ico{background:var(--purple-lt)} .r-gaming  .c-tag{background:var(--purple-lt);color:var(--purple-dk)}
-.r-animals.c-ico{background:var(--green-lt)}  .r-animals .c-tag{background:var(--green-lt); color:#1A7A3E}
-.r-space  .c-ico{background:var(--coral-lt)}  .r-space   .c-tag{background:var(--coral-lt); color:#A02424}
-.r-cool   .c-ico{background:var(--amber-lt)}  .r-cool    .c-tag{background:var(--amber-lt); color:#8A5C00}
 
-/* PAYWALL */
-.paywall{position:relative;z-index:1;margin:0 1.5rem 4rem;max-width:1120px;margin-left:auto;margin-right:auto}
-.paywall-card{background:linear-gradient(135deg,var(--purple-dk) 0%,var(--purple) 100%);border-radius:var(--r);padding:3rem 2rem;text-align:center;color:#fff;box-shadow:0 20px 60px rgba(124,111,247,.4)}
-.paywall-card h2{font-family:'Lilita One',sans-serif;font-size:28px;margin-bottom:.5rem}
-.paywall-card p{font-size:15px;opacity:.85;font-weight:600;margin-bottom:.75rem}
-.price-tag{font-family:'Lilita One',sans-serif;font-size:48px;margin:1rem 0 .25rem}
-.price-tag span{font-size:20px;opacity:.7;font-family:'Nunito',sans-serif;font-weight:700}
-.perks{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:1.25rem 0 2rem}
-.perk{background:rgba(255,255,255,.15);border-radius:99px;padding:6px 16px;font-size:13px;font-weight:700}
-.pw-btn{display:inline-block;padding:14px 36px;border-radius:99px;border:none;background:var(--amber);color:var(--text);font-family:'Lilita One',sans-serif;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.2);transition:transform .15s,opacity .15s;text-decoration:none}
-.pw-btn:hover{transform:translateY(-2px);opacity:.92}
-.pw-note{font-size:12px;opacity:.6;margin-top:.75rem;font-weight:600}
+/* per-category colors */
+.r-robots  .c-ico{background:var(--teal-lt)}   .r-robots  .c-tag{background:var(--teal-lt);  color:#0A6950}
+.r-art     .c-ico{background:var(--pink-lt)}   .r-art     .c-tag{background:var(--pink-lt);  color:#A0205A}
+.r-science .c-ico{background:var(--blue-lt)}   .r-science .c-tag{background:var(--blue-lt);  color:#135EA8}
+.r-gaming  .c-ico{background:var(--purple-lt)} .r-gaming  .c-tag{background:var(--purple-lt);color:var(--purple-dk)}
+.r-animals .c-ico{background:var(--green-lt)}  .r-animals .c-tag{background:var(--green-lt); color:#1A7A3E}
+.r-space   .c-ico{background:var(--coral-lt)}  .r-space   .c-tag{background:var(--coral-lt); color:#A02424}
+.r-cool    .c-ico{background:var(--amber-lt)}  .r-cool    .c-tag{background:var(--amber-lt); color:#8A5C00}
 
-/* ARTICLE MODAL */
-.art-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:none;align-items:center;justify-content:center;padding:1rem}
-.art-overlay.open{display:flex}
-.art-modal{background:var(--surface);border-radius:var(--r);padding:2.5rem;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;position:relative;animation:pop .3s ease}
-.art-close{position:absolute;top:1rem;right:1rem;background:var(--bg);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted)}
-.art-close:hover{background:var(--border)}
-.art-tag{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:4px 10px;border-radius:99px;display:inline-block;margin-bottom:1rem}
-.art-title{font-family:'Lilita One',sans-serif;font-size:clamp(22px,4vw,30px);line-height:1.2;margin-bottom:1.25rem;color:var(--text)}
-.art-body{margin-bottom:1.5rem}
-.art-body p{font-size:16px;line-height:1.8;color:var(--muted);font-weight:600;margin-bottom:1rem}
-.art-body p:last-child{margin-bottom:0}
-.art-wow{display:flex;align-items:flex-start;gap:8px;background:var(--purple-lt);border-radius:var(--r-sm);padding:12px 14px;font-size:14px;font-weight:700;color:var(--purple-dk);border-left:3px solid var(--purple)}
-.card{cursor:pointer}
-.read-more{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--purple);margin-top:4px}
-
-/* LOCKED CARDS */
-.card.locked{cursor:pointer;overflow:hidden}
-.card.locked .c-body{filter:blur(4px);user-select:none;pointer-events:none;opacity:.7}
-.card.locked .c-wow{display:none}
-.locked-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(245,243,255,.82);backdrop-filter:blur(2px);border-radius:var(--r);gap:6px;padding:1rem;text-align:center;z-index:2}
-.locked-icon{font-size:26px}
-.locked-label{font-family:'Lilita One',sans-serif;font-size:14px;color:var(--purple-dk)}
-.locked-sub{font-size:11px;font-weight:700;color:var(--muted)}
-.locked-btn{padding:6px 16px;border-radius:99px;border:none;background:var(--purple);color:#fff;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;margin-top:2px}
-.card{position:relative}
-.free-badge{position:absolute;top:10px;right:10px;background:var(--teal);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;letter-spacing:.5px;z-index:1}
-
-/* SOCIAL PROOF */
-.social-proof{position:relative;z-index:1;background:var(--surface);border-top:1.5px solid var(--border);border-bottom:1.5px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:center;gap:2.5rem;flex-wrap:wrap}
-.proof-item{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--muted)}
-.proof-item strong{color:var(--text);font-size:17px;font-family:'Lilita One',sans-serif}
-
-/* STICKY BAR */
-.sticky-bar{position:fixed;bottom:0;left:0;right:0;z-index:300;background:linear-gradient(90deg,var(--purple-dk),var(--purple));color:#fff;padding:12px 2rem;display:none;align-items:center;justify-content:space-between;gap:1rem;box-shadow:0 -4px 24px rgba(124,111,247,.5)}
-.sticky-bar.show{display:flex}
-.sticky-bar-text{font-size:13px;font-weight:700;line-height:1.4}
-.sticky-bar-text strong{font-family:'Lilita One',sans-serif;font-size:16px;display:block}
-.sticky-bar-btn{padding:10px 22px;border-radius:99px;border:none;background:var(--amber);color:var(--text);font-family:'Lilita One',sans-serif;font-size:16px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.2)}
-.sticky-bar-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:20px;cursor:pointer;flex-shrink:0;padding:0 4px}
-
+/* skeletons */
 .sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
 .sk-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:1.4rem 1.5rem;display:flex;flex-direction:column;gap:14px}
 .sk{background:linear-gradient(90deg,var(--border) 25%,#fff 50%,var(--border) 75%);background-size:200% 100%;border-radius:8px;animation:shimmer 1.5s infinite}
 @keyframes shimmer{to{background-position:-200% 0}}
-.sk-i{width:52px;height:52px;border-radius:14px}.sk-t{height:20px}.sk-l1{height:14px}.sk-l2{height:14px;width:80%}.sk-w{height:44px;border-radius:var(--r-sm)}
+.sk-i{width:52px;height:52px;border-radius:14px}
+.sk-t{height:20px}.sk-l1{height:14px}.sk-l2{height:14px;width:80%}.sk-w{height:44px;border-radius:var(--r-sm)}
 
-/* STATES */
+/* state boxes */
 .state{text-align:center;padding:5rem 2rem;color:var(--muted);font-weight:600}
 .state-ico{font-size:60px;margin-bottom:16px;display:block}
 .state h2{font-family:'Lilita One',sans-serif;font-size:24px;color:var(--text);margin-bottom:8px}
-.retry{margin-top:1.5rem;padding:10px 24px;border-radius:99px;border:none;background:var(--purple);color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer}
+.state p{font-size:15px}
+.retry{margin-top:1.5rem;padding:10px 24px;border-radius:99px;border:none;
+  background:var(--purple);color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer}
 
-/* PRICING SECTION */
-.pricing-section{position:relative;z-index:1;background:var(--surface);border-top:1.5px solid var(--border);padding:5rem 2rem;text-align:center}
-.pricing-section h2{font-family:'Lilita One',sans-serif;font-size:36px;margin-bottom:.5rem}
-.pricing-section > p{font-size:16px;color:var(--muted);font-weight:600;margin-bottom:3rem}
-.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:700px;margin:0 auto}
-.plan{border:1.5px solid var(--border);border-radius:var(--r);padding:2rem 1.5rem;text-align:left;background:var(--bg)}
-.plan.featured{border-color:var(--purple);background:var(--purple-lt);box-shadow:0 8px 32px rgba(124,111,247,.2)}
-.plan-label{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
-.plan.featured .plan-label{color:var(--purple-dk)}
-.plan-price{font-family:'Lilita One',sans-serif;font-size:40px;color:var(--text);margin-bottom:.25rem}
-.plan-price small{font-size:16px;font-family:'Nunito',sans-serif;font-weight:700;color:var(--muted)}
-.plan-desc{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:1.5rem}
-.plan-features{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:1.5rem}
-.plan-features li{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
-.plan-features li::before{content:'✓';color:var(--teal);font-weight:900}
-.plan-features li.no::before{content:'✗';color:#ccc}
-.plan-features li.no{color:var(--muted)}
-.plan-btn{width:100%;padding:11px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all .15s}
-.plan.featured .plan-btn{background:var(--purple);color:#fff;border-color:var(--purple)}
-.plan.featured .plan-btn:hover{opacity:.88}
-.plan-btn:hover{border-color:var(--purple);color:var(--purple)}
+/* newsletter */
+.nl{position:relative;z-index:1;background:var(--purple);color:#fff;padding:3.5rem 2rem;text-align:center}
+.nl h2{font-family:'Lilita One',sans-serif;font-size:28px;margin-bottom:.5rem}
+.nl p{font-size:15px;opacity:.85;margin-bottom:1.5rem;font-weight:600}
+.nl-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.nl-in{padding:11px 20px;border-radius:99px;border:none;font-family:'Nunito',sans-serif;
+  font-size:15px;font-weight:700;width:280px;outline:none;color:var(--text)}
+.nl-btn{padding:11px 26px;border-radius:99px;border:none;background:var(--amber);
+  color:var(--text);font-family:'Lilita One',sans-serif;font-size:17px;cursor:pointer;transition:opacity .15s}
+.nl-btn:hover{opacity:.88}
+.nl-ok{font-size:15px;font-weight:800;display:none}
 
-/* FOOTER */
+/* footer */
 .ftr{position:relative;z-index:1;background:var(--text);color:#fff;padding:3rem 2rem 2rem}
 .ftr-g{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:2rem}
-.ftr-brand .logo{color:#fff}.ftr-brand .logo .bz{color:var(--amber)}
+.ftr-brand .logo{color:#fff;font-size:20px}.ftr-brand .logo .bz{color:var(--amber)}
 .ftr-brand p{font-size:13px;opacity:.6;font-weight:600;line-height:1.7;margin-top:.75rem;max-width:260px}
 .ftr-col h4{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.5;margin-bottom:12px}
 .ftr-col a{display:block;font-size:14px;font-weight:700;color:#fff;text-decoration:none;opacity:.7;margin-bottom:7px}
 .ftr-col a:hover{opacity:1}
-.ftr-bot{max-width:1000px;margin:2rem auto 0;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.4;font-weight:700;flex-wrap:wrap;gap:8px}
+.ftr-bot{max-width:1000px;margin:2rem auto 0;padding-top:1.5rem;
+  border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;
+  align-items:center;font-size:12px;opacity:.4;font-weight:700;flex-wrap:wrap;gap:8px}
 
-/* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:none;align-items:center;justify-content:center;padding:1rem}
-.modal-overlay.open{display:flex}
-.modal{background:var(--surface);border-radius:var(--r);padding:2.5rem;width:100%;max-width:420px;position:relative;animation:pop .3s ease}
-.modal h2{font-family:'Lilita One',sans-serif;font-size:26px;margin-bottom:.25rem}
-.modal p{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:1.5rem}
-.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)}
-.tab-row{display:flex;gap:0;margin-bottom:1.5rem;border:1.5px solid var(--border);border-radius:99px;padding:3px}
-.tab{flex:1;padding:8px;border-radius:99px;border:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:var(--muted);cursor:pointer;transition:all .15s}
-.tab.active{background:var(--purple);color:#fff}
-.form-group{margin-bottom:1rem}
-.form-group label{display:block;font-size:13px;font-weight:800;margin-bottom:5px;color:var(--text)}
-.form-group input{width:100%;padding:11px 14px;border-radius:var(--r-sm);border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:15px;font-weight:600;color:var(--text);outline:none;transition:border-color .15s}
-.form-group input:focus{border-color:var(--purple)}
-.form-err{font-size:13px;color:#D0242A;font-weight:700;margin-top:-.5rem;margin-bottom:.75rem;display:none}
-.submit-btn{width:100%;padding:13px;border-radius:99px;border:none;background:var(--purple);color:#fff;font-family:'Lilita One',sans-serif;font-size:18px;cursor:pointer;margin-top:.5rem;transition:opacity .15s}
-.submit-btn:hover:not(:disabled){opacity:.88}
-.submit-btn:disabled{opacity:.5;cursor:not-allowed}
-.modal-switch{text-align:center;margin-top:1rem;font-size:13px;font-weight:700;color:var(--muted)}
-.modal-switch a{color:var(--purple);cursor:pointer;text-decoration:underline}
-
+/* responsive */
 @media(max-width:700px){
   .hdr{padding:0 1rem}.lu-badge{display:none}
   .hero{padding:2.5rem 1rem 2rem}.hero h1{font-size:34px}.hero p{font-size:15px}
-  .cats,.grid-wrap,.paywall{padding-left:1rem;padding-right:1rem}
+  .cats,.grid-wrap{padding-left:1rem;padding-right:1rem}
   .grid,.sk-grid{grid-template-columns:1fr}
-  .ftr-g{grid-template-columns:1fr}.pricing-grid{grid-template-columns:1fr}
+  .ftr-g{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -241,38 +190,17 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <div class="blob blob-2" aria-hidden="true"></div>
 <div class="blob blob-3" aria-hidden="true"></div>
 
-<div class="promo-banner" id="promoBanner">
-  <div class="promo-banner-inner">
-    <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
-    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
-    <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2026</div><br>
-    <a href="#" onclick="document.getElementById('promoBox').scrollIntoView({behavior:'smooth'});return false">Enter promo code to get the deal →</a>
-  </div>
-</div>
-
 <!-- HEADER -->
 <header class="hdr">
   <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
   <div class="hdr-right">
     <span class="lu-badge" id="luBadge">Loading...</span>
     <div class="lvl-pill">Level:
-      <select id="level" onchange="onLevelChange()">
+      <select id="level" title="Reading level" onchange="onLevelChange()">
         <option value="young">Ages 6–8</option>
         <option value="middle" selected>Ages 9–12</option>
         <option value="older">Ages 13+</option>
       </select>
-    </div>
-    <div id="authButtons">
-      <button class="hdr-btn" onclick="openModal('login')">Log in</button>
-      <button class="hdr-btn primary" onclick="openModal('signup')">Sign up</button>
-    </div>
-    <div id="userArea" style="display:none">
-      <div class="hdr-user">
-        <span id="userEmail"></span>
-        <span class="sub-badge" id="subBadge" style="display:none">PRO ✓</span>
-        <button class="hdr-btn" id="manageBtn" onclick="manageSubscription()" style="display:none">Manage</button>
-        <button class="hdr-btn" onclick="logout()">Log out</button>
-      </div>
     </div>
   </div>
 </header>
@@ -284,7 +212,16 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   <p>Scraped fresh from 8 top tech sources every 2 hours — robots, art, science & more!</p>
 </section>
 
-<!-- CATS -->
+<!-- REFRESH BUTTON -->
+<div class="refresh-row">
+  <button class="rfbtn" id="rfBtn" onclick="loadNews(true)">
+    <span class="rf-icon">🔄</span>
+    <div class="spin"></div>
+    <span id="rfLabel">Refresh news</span>
+  </button>
+</div>
+
+<!-- CATEGORIES -->
 <div class="cats" id="cats">
   <button class="cat active" data-cat="all">🌟 All</button>
   <button class="cat" data-cat="robots">🤖 Robots</button>
@@ -296,102 +233,33 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   <button class="cat" data-cat="cool">💡 Cool stuff</button>
 </div>
 
-<!-- SOCIAL PROOF -->
-<div class="social-proof">
-  <div class="proof-item"><strong>63</strong> fresh AI stories</div>
-  <div class="proof-item"><strong>7</strong> topic categories</div>
-  <div class="proof-item"><strong>3</strong> reading levels</div>
-  <div class="proof-item"><strong>⭐⭐⭐⭐⭐</strong> loved by kids</div>
-  <div class="proof-item"><strong>Updated</strong> every 2 hours</div>
-</div>
-
 <!-- MAIN GRID -->
 <main class="grid-wrap">
   <div class="sec-lbl" id="secLbl">Latest stories</div>
   <div id="content">
-    <div class="sk-grid">
-      ${Array(6).fill(`<div class="sk-card"><div class="sk sk-i"></div><div class="sk sk-t"></div><div class="sk sk-l1"></div><div class="sk sk-l2"></div><div class="sk sk-w"></div></div>`).join('')}
+    <div class="sk-grid" id="skeletons">
+      ${Array(8).fill(`<div class="sk-card"><div class="sk sk-i"></div><div class="sk sk-t"></div><div class="sk sk-l1"></div><div class="sk sk-l2"></div><div class="sk sk-w"></div></div>`).join('')}
     </div>
   </div>
 </main>
 
-<!-- PAYWALL (shown to non-subscribers) -->
-<div class="paywall" id="paywall" style="display:none">
-  <div class="paywall-card">
-    <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
-    <h2>Unlock all stories!</h2>
-    <p>You're reading 6 of <span id="totalCount">24</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
-    <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
-    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
-    <div class="perks">
-      <span class="perk">✅ 7-day free trial</span>
-      <span class="perk">✅ All 24+ articles</span>
-      <span class="perk">✅ Updated every 2 hours</span>
-      <span class="perk">✅ Cancel anytime</span>
-    </div>
-    <button class="pw-btn" onclick="subscribe()">Start Free Trial!</button>
-    <p class="pw-note">7 days free • Then $3.99/mo • Cancel anytime • Secure payment via Stripe</p>
+<!-- NEWSLETTER -->
+<section class="nl">
+  <h2>📬 Stay in the loop!</h2>
+  <p>Get the best AI news for kids delivered free every week!</p>
+  <div class="nl-form" id="nlForm">
+    <input class="nl-in" type="email" id="nlEmail" placeholder="your@email.com">
+    <button class="nl-btn" onclick="nlSignup()">Subscribe!</button>
   </div>
-</div>
-
-<!-- PRICING SECTION -->
-<section class="pricing-section" id="pricing">
-  <h2>Simple pricing</h2>
-  <p>One plan, everything included.</p>
-
-  <!-- PROMO CODE BOX — always visible -->
-  <div class="promo-code-box" id="promoBox" style="max-width:480px;margin:0 auto 2.5rem;">
-    <div class="promo-code-title">🔥 GOT A PROMO CODE? ENTER IT BELOW FOR HALF PRICE!</div>
-    <div class="promo-code-row">
-      <input class="promo-input" id="promoInput" type="text" placeholder="Enter code..." maxlength="20" onkeydown="if(event.key==='Enter')applyPromo()">
-      <button class="promo-apply-btn" onclick="applyPromo()">Apply</button>
-    </div>
-    <div class="promo-feedback" id="promoFeedback"></div>
-  </div>
-  <div class="pricing-grid">
-    <div class="plan">
-      <div class="plan-label">Free</div>
-      <div class="plan-price">$0<small>/mo</small></div>
-      <div class="plan-desc">Try it out</div>
-      <ul class="plan-features">
-        <li>3 articles per day</li>
-        <li class="no">All 24+ articles</li>
-        <li class="no">Auto-refresh every 2 hours</li>
-        <li class="no">All 3 reading levels</li>
-      </ul>
-      <button class="plan-btn" onclick="openModal('signup')">Get started free</button>
-    </div>
-    <div class="plan featured">
-      <div class="plan-label">⭐ Pro</div>
-      <div class="plan-price" id="planPrice">$3.99<small>/mo</small></div>
-      <div class="plan-desc" id="planDesc">7-day free trial • Cancel anytime</div>
-      <ul class="plan-features">
-        <li>All 24+ fresh articles</li>
-        <li>Updated every 2 hours</li>
-        <li>All 3 reading levels</li>
-        <li>All 8 topic categories</li>
-      </ul>
-      <button class="plan-btn" onclick="subscribe()">Subscribe now →</button>
-    </div>
-  </div>
+  <p class="nl-ok" id="nlOk">🎉 You're in! Welcome to Kids AI Buzz!</p>
 </section>
-
-<!-- STICKY SUBSCRIBE BAR -->
-<div class="sticky-bar" id="stickyBar">
-  <div class="sticky-bar-text">
-    <strong>📰 You've read your 6 free articles!</strong>
-    Start your 7-day free trial to read all 63 stories — then just $3.99/month.
-  </div>
-  <button class="sticky-bar-btn" onclick="subscribe()">Start Free Trial →</button>
-  <button class="sticky-bar-close" onclick="document.getElementById('stickyBar').classList.remove('show')" title="Close">✕</button>
-</div>
 
 <!-- FOOTER -->
 <footer class="ftr">
   <div class="ftr-g">
     <div class="ftr-brand">
       <a class="logo" href="/"><span>✨</span>Kids AI <span class="bz">Buzz</span></a>
-      <p>Real AI news from 8 top sources, rewritten so every kid can understand and love science.</p>
+      <p>Real AI news scraped from 8 top tech sources and rewritten so every kid can understand and love science.</p>
     </div>
     <div class="ftr-col">
       <h4>Topics</h4>
@@ -403,7 +271,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     </div>
     <div class="ftr-col">
       <h4>Info</h4>
-      <a href="#pricing">Pricing</a>
+      <a href="#">About us</a>
       <a href="#">For parents</a>
       <a href="#">For teachers</a>
       <a href="#">Privacy policy</a>
@@ -416,319 +284,110 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   </div>
 </footer>
 
-<!-- AUTH MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal()">✕</button>
-    <h2 id="modalTitle">Welcome back!</h2>
-    <p id="modalSub">Sign in to your Kids AI Buzz account</p>
-    <div class="tab-row">
-      <button class="tab active" id="loginTab" onclick="switchTab('login')">Log in</button>
-      <button class="tab" id="signupTab" onclick="switchTab('signup')">Sign up</button>
-    </div>
-    <div class="form-group">
-      <label>Email address</label>
-      <input type="email" id="authEmail" placeholder="you@example.com">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="authPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAuth()">
-    </div>
-    <div class="form-err" id="authErr"></div>
-    <button class="submit-btn" id="authSubmit" onclick="submitAuth()">Log in</button>
-    <div class="modal-switch" id="modalSwitch">
-      Don't have an account? <a onclick="switchTab('signup')">Sign up free</a>
-    </div>
-  </div>
-</div>
-
-<!-- ARTICLE MODAL -->
-<div class="art-overlay" id="artOverlay" onclick="closeArticle(event)">
-  <div class="art-modal">
-    <button class="art-close" onclick="closeArtModal()">✕</button>
-    <span class="art-tag" id="artTag"></span>
-    <h2 class="art-title" id="artTitle"></h2>
-    <p class="art-body" id="artBody"></p>
-    <div class="art-wow"><span>💬</span><span id="artWow"></span></div>
-  </div>
-</div>
-
 <script>
 /* ── state ── */
-let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
-let currentTab='login', token=localStorage.getItem('kab_token');
+let allArticles = [], activeLevel = 'middle', activeCat = 'all';
 
-const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
-const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+const EMO = {robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
+const LBL = {robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
 
-/* ── auth header ── */
-function authHeader(){return token?{'Authorization':'Bearer '+token}:{}}
-
-/* ── check session on load ── */
-async function checkSession(){
-  if(!token) return;
-  try{
-    const r=await fetch('/api/auth/me',{headers:authHeader()});
-    if(!r.ok){token=null;localStorage.removeItem('kab_token');return;}
-    const d=await r.json();
-    showUserArea(d.email,d.subscribed);
-  }catch{}
-}
-
-function showUserArea(email,subscribed){
-  isSubscribed=subscribed;
-  document.getElementById('authButtons').style.display='none';
-  document.getElementById('userArea').style.display='block';
-  document.getElementById('userEmail').textContent=email;
-  document.getElementById('subBadge').style.display=subscribed?'inline-block':'none';
-  document.getElementById('manageBtn').style.display=subscribed?'inline-block':'none';
-}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ── categories ── */
-document.getElementById('cats').addEventListener('click',e=>{
-  const b=e.target.closest('.cat');if(!b)return;setCategory(b.dataset.cat);
+document.getElementById('cats').addEventListener('click', e => {
+  const b = e.target.closest('.cat'); if (!b) return;
+  setCategory(b.dataset.cat);
 });
-function setCategory(cat,scroll=true){
-  activeCat=cat;
-  document.querySelectorAll('.cat').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
+function setCategory(cat, scroll=true){
+  activeCat = cat;
+  document.querySelectorAll('.cat').forEach(b => b.classList.toggle('active', b.dataset.cat===cat));
   renderCards();
-  if(scroll)window.scrollTo({top:0,behavior:'smooth'});
+  if(scroll) window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;loadNews();}
+function onLevelChange(){ activeLevel = document.getElementById('level').value; loadNews(); }
 
 /* ── render ── */
 function renderCards(){
   const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
-  const free   = list.filter(a=>!a.locked);
-  const locked = list.filter(a=>a.locked);
-  const lbl = activeCat==='all'
-    ? `Latest stories — ${free.length} free + ${locked.length} subscriber`
-    : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${free.length} free + ${locked.length} locked`;
+  const lbl  = activeCat==='all'
+    ? `Latest stories — ${allArticles.length} articles`
+    : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${list.length} stories`;
   document.getElementById('secLbl').textContent = lbl;
 
   if(!list.length){
-    document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">🔍</span><h2>Nothing here!</h2><p>No stories in this category yet — try another!</p></div>`;
+    document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">🔍</span><h2>Nothing here yet!</h2><p>No stories in this category right now — try another!</p></div>`;
     return;
   }
-
-  // count free articles opened (track in sessionStorage)
-  const opened = parseInt(sessionStorage.getItem('kab_opened')||'0');
-
-  const makeCard = (a, i) => {
+  document.getElementById('content').innerHTML=`<div class="grid">${list.map(a=>{
     const cat=a.category||'cool', em=EMO[cat]||'✨', lb=LBL[cat]||cat;
-    const date=a.pubDate?new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
-    if(a.locked){
-      return `<div class="card locked r-${esc(cat)}" onclick="clickLocked()">
-        <div class="card-top"><div class="c-ico">${em}</div><div class="c-meta"><span class="c-tag">${esc(lb)}</span><span class="c-src">${date}</span></div></div>
-        <h2 class="c-title">${esc(a.headline)}</h2>
-        <p class="c-body">${esc(a.summary)}</p>
-        <div class="c-wow"></div>
-        <div class="locked-overlay">
-          <div class="locked-icon">🔒</div>
-          <div class="locked-label">Subscriber only</div>
-          <div class="locked-sub">7-day free trial • Then $3.99/mo</div>
-          <button class="locked-btn" onclick="event.stopPropagation();subscribe()">Start Free Trial</button>
+    const date = a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    return `<div class="card r-${esc(cat)}">
+      <div class="card-top">
+        <div class="c-ico">${em}</div>
+        <div class="c-meta">
+          <span class="c-tag">${esc(lb)}</span>
+          <span class="c-src">${esc(a.source)}${date?' · '+date:''}</span>
         </div>
-      </div>`;
-    }
-    return `<div class="card r-${esc(cat)}" onclick="openArticle(${allArticles.indexOf(a)})">
-      <span class="free-badge">FREE</span>
-      <div class="card-top"><div class="c-ico">${em}</div><div class="c-meta"><span class="c-tag">${esc(lb)}</span><span class="c-src">${date}</span></div></div>
+      </div>
       <h2 class="c-title">${esc(a.headline)}</h2>
       <p class="c-body">${esc(a.summary)}</p>
       <div class="c-wow"><span class="c-wow-i">💬</span><span>${esc(a.wow)}</span></div>
-      <span class="read-more">Read full story →</span>
+      ${a.link?`<a class="c-link" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">Read full story →</a>`:''}
     </div>`;
-  };
-
-  document.getElementById('content').innerHTML=`<div class="grid">${[...free,...locked].map(makeCard).join('')}</div>`;
+  }).join('')}</div>`;
 }
 
 /* ── load news ── */
-async function loadNews(){
-  try{
-    const r=await fetch(`/api/news?level=${activeLevel}`,{headers:authHeader()});
-    if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    const data=await r.json();
+async function loadNews(manual=false){
+  const btn = document.getElementById('rfBtn');
+  const lbl = document.getElementById('rfLabel');
+  btn.disabled = true; btn.classList.add('loading');
+  lbl.textContent = 'Loading...';
+
+  try {
+    const r = await fetch(`/api/news?level=${activeLevel}&limit=12`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
     allArticles = data.articles || [];
-    window._articles = allArticles;
-    isSubscribed = data.subscribed;
 
-    // update last-updated badge
-    const lu=document.getElementById('luBadge');
+    // update badge
+    const lu = document.getElementById('luBadge');
     if(data.lastUpdated){
-      const mins=Math.round((Date.now()-new Date(data.lastUpdated))/60000);
-      const t=mins<2?'just now':mins<60?`${mins}m ago`:`${Math.round(mins/60)}h ago`;
+      const mins = Math.round((Date.now()-new Date(data.lastUpdated))/60000);
+      const t = mins<2?'just now':mins<60?`${mins}m ago`:`${Math.round(mins/60)}h ago`;
       lu.innerHTML=`<span class="dot"></span>Updated ${t}`;
-    }
+    } else { lu.textContent='Loading...'; }
 
-    // paywall
-    const pw=document.getElementById('paywall');
-    if(data.hasMore&&!isSubscribed){
-      pw.style.display='block';
-      document.getElementById('totalCount').textContent=data.total;
-    } else { pw.style.display='none'; }
+    if(data.isRefreshing){
+      lu.innerHTML=`<span class="dot"></span>Scraping now...`;
+    }
 
     renderCards();
-  }catch(err){
-    document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">😬</span><h2>Can't reach server</h2><p>${esc(err.message)}</p><button class="retry" onclick="loadNews()">Try again</button></div>`;
+  } catch(err){
+    document.getElementById('content').innerHTML=`<div class="state">
+      <span class="state-ico">😬</span>
+      <h2>Server not reachable</h2>
+      <p>Make sure the Kids AI Buzz server is running on this machine.</p>
+      <button class="retry" onclick="loadNews()">Try again</button>
+    </div>`;
+  } finally {
+    btn.disabled=false; btn.classList.remove('loading');
+    lbl.textContent='Refresh news';
   }
 }
 
-/* ── subscribe ── */
-async function subscribe(){
-  if(!token){openModal('signup');return;}
-  try{
-    const r=await fetch('/api/stripe/checkout',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'},body:JSON.stringify({usePromo: promoCodeApplied})});
-    const d=await r.json();
-    if(d.url) window.location.href=d.url;
-    else alert(d.error||'Something went wrong');
-  }catch(e){alert('Could not start checkout: '+e.message);}
-}
-function subscribeWithPromo(){ subscribe(); }
-async function manageSubscription(){
-  try{
-    const r=await fetch('/api/stripe/portal',{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'}});
-    const d=await r.json();
-    if(d.url) window.location.href=d.url;
-    else alert(d.error||'Something went wrong');
-  }catch(e){alert('Error: '+e.message);}
-}
-
-/* ── modal ── */
-function openModal(tab){document.getElementById('modalOverlay').classList.add('open');switchTab(tab);}
-function closeModal(){document.getElementById('modalOverlay').classList.remove('open');clearAuthForm();}
-function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
-function clearAuthForm(){document.getElementById('authEmail').value='';document.getElementById('authPassword').value='';document.getElementById('authErr').style.display='none';}
-function switchTab(tab){
-  currentTab=tab;
-  document.getElementById('loginTab').classList.toggle('active',tab==='login');
-  document.getElementById('signupTab').classList.toggle('active',tab==='signup');
-  document.getElementById('modalTitle').textContent=tab==='login'?'Welcome back!':'Create account';
-  document.getElementById('modalSub').textContent=tab==='login'?'Sign in to your account':'Sign up free — no credit card needed';
-  document.getElementById('authSubmit').textContent=tab==='login'?'Log in':'Sign up free';
-  document.getElementById('modalSwitch').innerHTML=tab==='login'?`Don't have an account? <a onclick="switchTab('signup')">Sign up free</a>`:`Already have an account? <a onclick="switchTab('login')">Log in</a>`;
-}
-function showErr(msg){const e=document.getElementById('authErr');e.textContent=msg;e.style.display='block';}
-
-async function submitAuth(){
-  const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
-  if(!email||!password){showErr('Please fill in all fields');return;}
-  const btn=document.getElementById('authSubmit');
-  btn.disabled=true;btn.textContent='...';
-  document.getElementById('authErr').style.display='none';
-  try{
-    const endpoint=currentTab==='login'?'/api/auth/login':'/api/auth/signup';
-    const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-    const d=await r.json();
-    if(!r.ok){showErr(d.error||'Something went wrong');return;}
-    token=d.token;localStorage.setItem('kab_token',token);
-    showUserArea(d.email,d.subscribed);
-    closeModal();
-    loadNews();
-  }catch(e){showErr('Network error — please try again.');}
-  finally{btn.disabled=false;btn.textContent=currentTab==='login'?'Log in':'Sign up free';}
-}
-
-function logout(){token=null;localStorage.removeItem('kab_token');isSubscribed=false;document.getElementById('authButtons').style.display='flex';document.getElementById('userArea').style.display='none';loadNews();}
-
-/* ── locked card click ── */
-function clickLocked(){
-  document.getElementById('paywall').style.display='block';
-  document.getElementById('paywall').scrollIntoView({behavior:'smooth'});
-}
-
-/* ── track article opens for sticky bar ── */
-function trackOpen(){
-  if(isSubscribed) return;
-  const n = parseInt(sessionStorage.getItem('kab_opened')||'0') + 1;
-  sessionStorage.setItem('kab_opened', n);
-  if(n >= 3) document.getElementById('stickyBar').classList.add('show');
-}
-
-
-function decodeHtml(s){const t=document.createElement('textarea');t.innerHTML=s;return t.value;}
-function openArticle(i){
-  const a = window._articles?.[i]; if(!a) return;
-  // if no full text (non-subscriber), show paywall
-  if(!a.full){
-    document.getElementById('paywall').style.display='block';
-    document.getElementById('paywall').scrollIntoView({behavior:'smooth'});
-    document.getElementById('paywall').style.animation='none';
-    document.getElementById('paywall').style.transform='scale(1.02)';
-    setTimeout(()=>{ document.getElementById('paywall').style.transform=''; },400);
-    return;
-  }
-  const cat=a.category||'cool', lb=LBL[cat]||cat;
-  const tag = document.getElementById('artTag');
-  tag.textContent = lb;
-  tag.className = 'art-tag';
-  const colors = {robots:'#D4F7ED;color:#0A6950',art:'#FFE4EE;color:#A0205A',science:'#DCEEFF;color:#135EA8',gaming:'#EAE8FF;color:#4538C9',animals:'#DFF7E8;color:#1A7A3E',space:'#FFE8E8;color:#A02424',cool:'#FFF5D0;color:#8A5C00'};
-  const [bg, col] = (colors[cat]||'#EAE8FF;color:#4538C9').split(';color:');
-  tag.style.cssText = `background:${bg};color:#${col}`;
-  document.getElementById('artTitle').textContent = decodeHtml(a.headline);
-  const bodyEl = document.getElementById('artBody');
-  const fullText = decodeHtml(a.full || a.summary);
-  bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('');
-  document.getElementById('artWow').textContent = decodeHtml(a.wow);
-  document.getElementById('artOverlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  trackOpen();
-}
-function closeArtModal(){
-  document.getElementById('artOverlay').classList.remove('open');
-  document.body.style.overflow = '';
-}
-function closeArticle(e){
-  if(e.target===document.getElementById('artOverlay')) closeArtModal();
-}
-
-
-let promoCodeApplied = false;
-const VALID_PROMO = 'CODINGMINDS';
-
-function applyPromo(){
-  const code = document.getElementById('promoInput').value.trim().toUpperCase();
-  const fb   = document.getElementById('promoFeedback');
-  if(code === VALID_PROMO){
-    promoCodeApplied = true;
-    fb.className = 'promo-feedback success';
-    fb.textContent = '✅ Code applied! Your discount is locked in.';
-    document.getElementById('promoInput').disabled = true;
-    document.querySelector('.promo-apply-btn').disabled = true;
-    document.getElementById('paywallPrice').innerHTML = `$1.99<span>/month</span>`;
-    document.getElementById('paywallPromoNote').style.display = 'block';
-  } else {
-    promoCodeApplied = false;
-    fb.className = 'promo-feedback error';
-    fb.textContent = '❌ Invalid code — try again!';
-  }
-}
-
-
-async function checkPromo(){
-  try{
-    const r=await fetch('/api/promo');
-    const d=await r.json();
-    if(d.isPromo){
-      document.getElementById('promoBanner').classList.add('show');
-      document.getElementById('paywallPrice').innerHTML=`$1.99<span>/month</span>`;
-      document.getElementById('paywallPromoNote').style.display='block';
-      document.getElementById('planPrice').innerHTML=`$1.99<small>/mo</small>`;
-      document.getElementById('planDesc').textContent='🔥 Promo ends June 1st 2026! Then $3.99/mo';
-    }
-  }catch{}
+/* ── newsletter ── */
+function nlSignup(){
+  const v=document.getElementById('nlEmail').value;
+  if(!v.includes('@')){alert('Please enter a valid email address!');return;}
+  document.getElementById('nlForm').style.display='none';
+  document.getElementById('nlOk').style.display='block';
+  // TODO: POST to your email provider (Mailchimp, ConvertKit, Resend, etc.)
 }
 
 /* ── init ── */
-if(new URLSearchParams(window.location.search).get('canceled')==='1'){
-  setTimeout(()=>alert('No worries! You can subscribe anytime.'),500);
-}
-checkPromo();
-checkSession().then(loadNews);
-setInterval(loadNews,5*60*1000);
+loadNews();
+setInterval(()=>loadNews(), 5*60*1000); // poll every 5 min
 </script>
 </body>
 </html>
