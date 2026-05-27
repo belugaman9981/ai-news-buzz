@@ -469,7 +469,7 @@ function renderCards(){
       <h2 class="c-title">${esc(a.headline)}</h2>
       <p class="c-body">${esc(a.summary)}</p>
       <div class="c-wow"><span class="c-wow-i">💬</span><span>${esc(a.wow)}</span></div>
-      <span class="read-more">${isSubscribed ? 'Read full story →' : '🔒 Read full story — free trial'}</span>
+      <span class="read-more">${a.full ? 'Read full story →' : '🔒 Read full story — start free trial'}</span>
     </div>`;
   }).join('')}</div>`;
 }
@@ -566,8 +566,9 @@ function logout(){token=null;localStorage.removeItem('kab_token');isSubscribed=f
 function decodeHtml(s){const t=document.createElement('textarea');t.innerHTML=s;return t.value;}
 function openArticle(i){
   const a = window._articles?.[i]; if(!a) return;
-  // non-subscribers see the paywall instead of full article
-  if(!isSubscribed){
+  // if no full text (non-subscriber), show paywall
+  if(!a.full){
+    document.getElementById('paywall').style.display='block';
     document.getElementById('paywall').scrollIntoView({behavior:'smooth'});
     document.getElementById('paywall').style.animation='none';
     document.getElementById('paywall').style.transform='scale(1.02)';
@@ -585,7 +586,7 @@ function openArticle(i){
   const bodyEl = document.getElementById('artBody');
   const fullText = decodeHtml(a.full || a.summary);
   bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('');
-  document.getElementById('artWow').textContent   = decodeHtml(a.wow);
+  document.getElementById('artWow').textContent = decodeHtml(a.wow);
   document.getElementById('artOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }

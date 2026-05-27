@@ -207,10 +207,37 @@ async function refreshNews() {
   cache.isRefreshing=true;
   console.log('\n🔄 Refresh started —',new Date().toLocaleTimeString());
   try{
-    const raw=await scrapeAllFeeds();
-    cache.articles=await rewriteForKids(raw);
-    cache.lastUpdated=new Date();
-    console.log(`✅ ${cache.articles.length} articles cached\n`);
+    const raw      = await scrapeAllFeeds();
+    const rewritten = await rewriteForKids(raw);
+
+    // ensure 9 per category — group and pad
+    const CATS = ['robots','art','science','gaming','animals','space','cool'];
+    const byCategory = {};
+    CATS.forEach(c => byCategory[c] = []);
+    for(const a of rewritten){
+      const c = a.category || 'cool';
+      if(!byCategory[c]) byCategory[c] = [];
+      byCategory[c].push(a);
+    }
+
+    // if any category has fewer than 9, fill from 'cool' overflow or recycle
+    let overflow = rewritten.filter(a => byCategory[a.category]?.length > 9);
+    CATS.forEach(c => {
+      while(byCategory[c].length < 9 && overflow.length){
+        const extra = overflow.shift();
+        byCategory[c].push({...extra, category: c});
+      }
+    });
+
+    // flatten: 9 per category = 63 total, interleaved so all cats appear
+    const final = [];
+    for(let i=0;i<9;i++){
+      CATS.forEach(c => { if(byCategory[c][i]) final.push(byCategory[c][i]); });
+    }
+
+    cache.articles    = final;
+    cache.lastUpdated = new Date();
+    console.log(`✅ ${final.length} articles cached (${CATS.map(c=>`${c}:${byCategory[c].length}`).join(', ')})\n`);
   }catch(e){console.error('❌ Refresh error:',e.message);}
   finally{cache.isRefreshing=false;}
 }
@@ -388,15 +415,12 @@ app.get('/api/news', (req, res) => {
   let articles = cache.articles;
   if(category!=='all') articles=articles.filter(a=>a.category===category);
 
-  // free users get 6 random articles; subscribers get all
-  let sliced;
-  if(subscribed){
-    sliced = articles.slice(0, 50);
-  } else {
-    const shuffled = [...articles].sort(() => Math.random() - .5);
-    sliced = shuffled.slice(0, 6);
-  }
-  const hasMore = !subscribed && cache.articles.length > 6;
+  // everyone gets 6 random article headlines/summaries free
+  // full article text only for subscribers
+  const shuffled = [...articles].sort(() => Math.random() - .5);
+  const freeArticles  = shuffled.slice(0, 6);
+  const sliced = subscribed ? articles.slice(0, 63) : freeArticles;
+  const hasMore = !subscribed && articles.length > 6;
 
   const shaped = sliced.map(a => ({
     id:       a.id,
@@ -404,8 +428,8 @@ app.get('/api/news', (req, res) => {
     category: a.category,
     pubDate:  a.pubDate,
     summary:  a.levels?.[level]?.summary || '',
-    full:     a.levels?.[level]?.full    || '',
-    wow:      a.levels?.[level]?.wow     || '',
+    full:     subscribed ? (a.levels?.[level]?.full || '') : '', // only send full text to subscribers
+    wow:      a.levels?.[level]?.wow || '',
   }));
 
   res.json({ ok:true, count:shaped.length, total:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, hasMore, articles:shaped });
