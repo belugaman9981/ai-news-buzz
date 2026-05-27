@@ -422,13 +422,13 @@ app.get('/api/news', (req, res) => {
   const sliced = subscribed ? articles.slice(0, 63) : freeArticles;
   const hasMore = !subscribed && articles.length > 6;
 
-  const shaped = sliced.map(a => ({
+  const shaped = sliced.map((a, i) => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
     pubDate:  a.pubDate,
     summary:  a.levels?.[level]?.summary || '',
-    full:     subscribed ? (a.levels?.[level]?.full || '') : '', // only send full text to subscribers
+    full:     (subscribed || i < 6) ? (a.levels?.[level]?.full || '') : '',
     wow:      a.levels?.[level]?.wow || '',
   }));
 
