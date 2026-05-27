@@ -71,90 +71,94 @@ const cache = { articles: [], lastUpdated: null, isRefreshing: false };
 async function fetchArticleBody(url) {
   try {
     const res = await axios.get(url, {
-      timeout: 8000,
+      timeout: 4000,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0)' },
-      maxContentLength: 500000,
+      maxContentLength: 200000,
     });
     const html = res.data || '';
-    // strip tags, scripts, styles
-    const text = html
+    return html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 5000);
-    return text;
   } catch { return ''; }
 }
 
-/* ── fetch top AI stories from HN Algolia ── */
+/* ── fetch HN stories ── */
 async function fetchHNStories() {
   try {
-    const queries = ['artificial intelligence','machine learning','openai','robotics','LLM','GPT','deepmind','anthropic'];
+    const queries = ['artificial intelligence','openai','robotics','LLM','GPT','deepmind','anthropic','machine learning'];
     const q = queries[Math.floor(Math.random() * queries.length)];
-    const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=20&numericFilters=points>50`;
-    const res = await axios.get(url, { timeout: 8000 });
+    const res = await axios.get(
+      `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>30`,
+      { timeout: 5000 }
+    );
     return (res.data.hits || [])
-      .filter(h => h.url && h.title && h.title.length > 15)
-      .map(h => ({ title: h.title, link: h.url, pubDate: h.created_at, source: 'HN' }));
-  } catch(e) { console.warn('⚠ HN fetch failed:', e.message); return []; }
+      .filter(h => h.url && h.title?.length > 15)
+      .slice(0, 10)
+      .map(h => ({ title: h.title, link: h.url, pubDate: h.created_at, source: 'HN', snippet: '' }));
+  } catch(e) { console.warn('⚠ HN failed:', e.message); return []; }
 }
 
-/* ── scrape RSS feeds ── */
+/* ── scrape RSS feed (includes snippet) ── */
 async function scrapeFeed(feed) {
   try {
     const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0,8).map(i => ({
+    return (r.items || []).slice(0, 6).map(i => ({
       title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
       link:    i.link || '',
       pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
       source:  feed.source,
+      snippet: (i.contentSnippet || i.description || '').replace(/<[^>]+>/g,'').slice(0, 800).trim(),
     }));
   } catch(e) { console.warn(`⚠ ${feed.source}: ${e.message}`); return []; }
 }
 
-/* ── main scrape: HN + RSS, then fetch full bodies ── */
+/* ── main pipeline ── */
 async function scrapeAllFeeds() {
   console.log('📡 Fetching stories...');
-  const [hnStories, ...rssResults] = await Promise.allSettled([
+
+  // Step 1: get all headlines + snippets in parallel
+  const [hnResult, ...rssResults] = await Promise.allSettled([
     fetchHNStories(),
     ...RSS_FEEDS.map(scrapeFeed)
   ]);
 
-  const hn  = hnStories.status === 'fulfilled' ? hnStories.value : [];
-  const rss = rssResults.filter(r=>r.status==='fulfilled').flatMap(r=>r.value);
-  const all = [...hn, ...rss].filter(a=>a.title?.length>15);
+  const hn  = hnResult.status === 'fulfilled' ? hnResult.value : [];
+  const rss = rssResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
+  const all = [...hn, ...rss].filter(a => a.title?.length > 15);
 
   // deduplicate
-  const seen=new Set(), dedup=[];
-  for(const item of all){
-    const key=item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,50);
-    if(!seen.has(key)){ seen.add(key); dedup.push(item); }
+  const seen = new Set(), dedup = [];
+  for (const item of all) {
+    const key = item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,50);
+    if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
-  dedup.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate));
-  const top = dedup.slice(0,20);
+  dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+  const top = dedup.slice(0, 12);
+  console.log(`   → ${top.length} stories found`);
 
-  console.log(`   → ${top.length} stories, fetching full article bodies...`);
+  // Step 2: fetch ALL article bodies in parallel at once (fast 4s timeout)
+  console.log('   → Fetching article bodies in parallel...');
+  const bodies = await Promise.all(
+    top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
+  );
 
-  // fetch full body for each article in parallel (with concurrency limit)
-  const CONCURRENCY = 5;
-  const withBodies = [];
-  for(let i=0;i<top.length;i+=CONCURRENCY){
-    const chunk = top.slice(i,i+CONCURRENCY);
-    const bodies = await Promise.all(chunk.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve('')));
-    chunk.forEach((a,j) => withBodies.push({ ...a, body: bodies[j] || '' }));
-  }
+  const withContent = top.map((a, i) => ({
+    ...a,
+    body: bodies[i] || a.snippet || '',
+  })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
 
-  const goodArticles = withBodies.filter(a => a.body.length > 200 || a.title.length > 20);
-  console.log(`   → ${goodArticles.length} articles with full content`);
-  return goodArticles.slice(0,16);
+  console.log(`   → ${withContent.length} articles with content`);
+  return withContent.slice(0, 12);
 }
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
   console.log(`✍️  Rewriting ${rawArticles.length} articles...`);
-  const BATCH=6; const results=[];
+  const BATCH=12; const results=[];
   for(let i=0;i<rawArticles.length;i+=BATCH){
     const batch=rawArticles.slice(i,i+BATCH);
     const startId=i+1;
