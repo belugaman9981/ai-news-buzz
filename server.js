@@ -413,17 +413,28 @@ app.get('/api/news', (req, res) => {
   }
 
   let articles = cache.articles;
-  if(category!=='all') articles=articles.filter(a=>a.category===category);
 
-  // everyone gets 6 fully readable random articles
-  // plus ALL other articles as locked previews (headline + teaser only)
-  const shuffled = [...articles].sort(() => Math.random() - .5);
-  const freeArticles   = shuffled.slice(0, 6);
-  const lockedArticles = subscribed ? [] : shuffled.slice(6);
-  const sliced = subscribed ? articles.slice(0, 63) : freeArticles;
-  const hasMore = !subscribed && articles.length > 6;
+  // build free set: 6 per category guaranteed
+  const CATS = ['robots','art','science','gaming','animals','space','cool'];
+  let freeArticles = [];
+  if(!subscribed){
+    const byCat = {};
+    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,6));
+    freeArticles = CATS.flatMap(c => byCat[c]); // up to 42 free articles (6 × 7 cats)
+  }
 
-  const shaped = sliced.map((a, i) => ({
+  // filter by category for display
+  if(category !== 'all'){
+    articles = articles.filter(a=>a.category===category);
+    if(!subscribed) freeArticles = freeArticles.filter(a=>a.category===category);
+  }
+
+  const freeIds = new Set(freeArticles.map(a=>a.id));
+  const lockedArticles = subscribed ? [] : articles.filter(a=>!freeIds.has(a.id));
+  const sliced = subscribed ? articles.slice(0,63) : freeArticles;
+  const hasMore = !subscribed && lockedArticles.length > 0;
+
+  const shaped = sliced.map(a => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
@@ -434,13 +445,12 @@ app.get('/api/news', (req, res) => {
     locked:   false,
   }));
 
-  // add locked previews for non-subscribers
   const lockedShaped = lockedArticles.map(a => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
     pubDate:  a.pubDate,
-    summary:  (a.levels?.[level]?.summary || '').split('.')[0] + '...', // first sentence only
+    summary:  (a.levels?.[level]?.summary || '').split('.')[0] + '...',
     full:     '',
     wow:      '',
     locked:   true,
