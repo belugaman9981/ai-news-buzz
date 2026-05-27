@@ -27,10 +27,10 @@ const APP_URL       = process.env.APP_URL       || `http://localhost:${PORT}`;
 const PRICE_ID      = process.env.STRIPE_PRICE_ID;
 
 if (!process.env.ANTHROPIC_API_KEY) { console.error('❌ ANTHROPIC_API_KEY missing'); process.exit(1); }
-if (!process.env.STRIPE_SECRET_KEY) { console.error('❌ STRIPE_SECRET_KEY missing'); process.exit(1); }
+if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not set — payments disabled'); }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const stripe    = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe    = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const parser    = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 
 const axios = require('axios');
@@ -289,6 +289,7 @@ const app = express();
 // raw body for Stripe webhooks BEFORE json middleware
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(cors());
@@ -341,6 +342,7 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 
 // POST /api/stripe/checkout  — create checkout session
 app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
+  if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const PROMO_COUPON_ID = process.env.STRIPE_PROMO_COUPON_ID;
   const promoRequested = req.body?.usePromo === true;
   const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
@@ -369,6 +371,7 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
 
 // POST /api/stripe/portal  — manage/cancel subscription
 app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
+  if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user?.stripeCustomerId) return res.status(400).json({ error: 'No subscription found' });
   try {
@@ -382,6 +385,7 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
 
 // POST /api/stripe/webhook  — Stripe events
 app.post('/api/stripe/webhook', (req, res) => {
+  if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const sig = req.headers['stripe-signature'];
   let event;
   try {
