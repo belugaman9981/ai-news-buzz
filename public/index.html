@@ -289,15 +289,6 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
     <p>You're reading 6 of <span id="totalCount">24</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
     <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
     <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
-
-    <div class="promo-code-box" id="promoBox">
-      <div class="promo-code-title">🔥 GET HALF PRICE — ENTER PROMO CODE BELOW!</div>
-      <div class="promo-code-row">
-        <input class="promo-input" id="promoInput" type="text" placeholder="Enter code..." maxlength="20">
-        <button class="promo-apply-btn" onclick="applyPromo()">Apply</button>
-      </div>
-      <div class="promo-feedback" id="promoFeedback"></div>
-    </div>
     <div class="perks">
       <span class="perk">✅ 7-day free trial</span>
       <span class="perk">✅ All 24+ articles</span>
@@ -313,6 +304,16 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <section class="pricing-section" id="pricing">
   <h2>Simple pricing</h2>
   <p>One plan, everything included.</p>
+
+  <!-- PROMO CODE BOX — always visible -->
+  <div class="promo-code-box" id="promoBox" style="max-width:480px;margin:0 auto 2.5rem;">
+    <div class="promo-code-title">🔥 GOT A PROMO CODE? ENTER IT BELOW FOR HALF PRICE!</div>
+    <div class="promo-code-row">
+      <input class="promo-input" id="promoInput" type="text" placeholder="Enter code..." maxlength="20" onkeydown="if(event.key==='Enter')applyPromo()">
+      <button class="promo-apply-btn" onclick="applyPromo()">Apply</button>
+    </div>
+    <div class="promo-feedback" id="promoFeedback"></div>
+  </div>
   <div class="pricing-grid">
     <div class="plan">
       <div class="plan-label">Free</div>
