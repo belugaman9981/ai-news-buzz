@@ -89,24 +89,24 @@ async function fetchArticleBody(url) {
 /* ── fetch HN stories ── */
 async function fetchHNStories() {
   try {
-    const queries = ['artificial intelligence','openai','robotics','LLM','GPT','deepmind','anthropic','machine learning'];
-    const q = queries[Math.floor(Math.random() * queries.length)];
-    const res = await axios.get(
-      `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>30`,
-      { timeout: 5000 }
+    const queries = ['artificial intelligence','openai','robotics','LLM','GPT','deepmind','anthropic','machine learning','AI art','AI gaming','AI animals','AI space','AI science'];
+    // fetch multiple queries in parallel
+    const results = await Promise.all(
+      queries.slice(0,5).map(q =>
+        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=10&numericFilters=points>20`, { timeout: 5000 })
+          .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
+          .catch(()=>[])
+      )
     );
-    return (res.data.hits || [])
-      .filter(h => h.url && h.title?.length > 15)
-      .slice(0, 10)
-      .map(h => ({ title: h.title, link: h.url, pubDate: h.created_at, source: 'HN', snippet: '' }));
+    return results.flat();
   } catch(e) { console.warn('⚠ HN failed:', e.message); return []; }
 }
 
-/* ── scrape RSS feed (includes snippet) ── */
+/* ── scrape RSS feed ── */
 async function scrapeFeed(feed) {
   try {
     const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0, 6).map(i => ({
+    return (r.items || []).slice(0, 10).map(i => ({
       title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
       link:    i.link || '',
       pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
@@ -120,7 +120,6 @@ async function scrapeFeed(feed) {
 async function scrapeAllFeeds() {
   console.log('📡 Fetching stories...');
 
-  // Step 1: get all headlines + snippets in parallel
   const [hnResult, ...rssResults] = await Promise.allSettled([
     fetchHNStories(),
     ...RSS_FEEDS.map(scrapeFeed)
@@ -137,11 +136,11 @@ async function scrapeAllFeeds() {
     if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
   dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 12);
+  const top = dedup.slice(0, 48); // grab top 48 to ensure 6 per category
   console.log(`   → ${top.length} stories found`);
 
-  // Step 2: fetch ALL article bodies in parallel at once (fast 4s timeout)
-  console.log('   → Fetching article bodies in parallel...');
+  // fetch all bodies in parallel
+  console.log('   → Fetching bodies in parallel...');
   const bodies = await Promise.all(
     top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
   );
@@ -152,7 +151,7 @@ async function scrapeAllFeeds() {
   })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
 
   console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 12);
+  return withContent.slice(0, 48);
 }
 
 async function rewriteForKids(rawArticles) {
@@ -389,10 +388,15 @@ app.get('/api/news', (req, res) => {
   let articles = cache.articles;
   if(category!=='all') articles=articles.filter(a=>a.category===category);
 
-  // free users get first 3 as preview
-  const limit      = subscribed ? 30 : 6;
-  const sliced     = articles.slice(0, limit);
-  const hasMore    = !subscribed && cache.articles.length > 6;
+  // free users get 6 random articles; subscribers get all
+  let sliced;
+  if(subscribed){
+    sliced = articles.slice(0, 50);
+  } else {
+    const shuffled = [...articles].sort(() => Math.random() - .5);
+    sliced = shuffled.slice(0, 6);
+  }
+  const hasMore = !subscribed && cache.articles.length > 6;
 
   const shaped = sliced.map(a => ({
     id:       a.id,
