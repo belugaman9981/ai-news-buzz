@@ -1,317 +1,514 @@
 require('dotenv').config();
-const express      = require('express');
-const cors         = require('cors');
-const compression  = require('compression');
-const helmet       = require('helmet');
-const rateLimit    = require('express-rate-limit');
-const cron         = require('node-cron');
-const RSSParser    = require('rss-parser');
-const Anthropic    = require('@anthropic-ai/sdk');
-const path         = require('path');
+const express     = require('express');
+const cors        = require('cors');
+const compression = require('compression');
+const helmet      = require('helmet');
+const rateLimit   = require('express-rate-limit');
+const cron        = require('node-cron');
+const RSSParser   = require('rss-parser');
+const Anthropic   = require('@anthropic-ai/sdk');
+const Stripe      = require('stripe');
+const bcrypt      = require('bcryptjs');
+const jwt         = require('jsonwebtoken');
+const path        = require('path');
+const fs          = require('fs');
+const db          = require('./db');
 
-/* ═══════════════════════════════════════════════════════════
+const CACHE_FILE  = path.join(__dirname, 'articles-cache.json');
+
+/* ═══════════════════════════════════════════════
    CONFIG
-═══════════════════════════════════════════════════════════ */
-const PORT         = process.env.PORT         || 3000;
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'changeme';
-const REFRESH_CRON = process.env.REFRESH_CRON || '0 */2 * * *';
-const NODE_ENV     = process.env.NODE_ENV     || 'development';
+═══════════════════════════════════════════════ */
+const PORT          = process.env.PORT          || 3000;
+const ADMIN_SECRET  = process.env.ADMIN_SECRET  || 'changeme';
+const REFRESH_CRON  = process.env.REFRESH_CRON  || '0 */2 * * *';
+const JWT_SECRET    = process.env.JWT_SECRET    || 'change-this-jwt-secret';
+const APP_URL       = process.env.APP_URL       || `http://localhost:${PORT}`;
+const PRICE_ID      = process.env.STRIPE_PRICE_ID;
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('❌  ANTHROPIC_API_KEY not set. Copy .env.example → .env and add your key.');
-  process.exit(1);
-}
+if (!process.env.ANTHROPIC_API_KEY) { console.error('❌ ANTHROPIC_API_KEY missing'); process.exit(1); }
+if (!process.env.STRIPE_SECRET_KEY) { console.error('❌ STRIPE_SECRET_KEY missing'); process.exit(1); }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const parser    = new RSSParser({
-  timeout: 8000,
-  headers: { 'User-Agent': 'KidsAIBuzz/1.0 RSS Reader' },
-  customFields: { item: [['media:content','mediaContent'],['content:encoded','contentEncoded']] }
-});
+const stripe    = Stripe(process.env.STRIPE_SECRET_KEY);
+const parser    = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 
-/* ═══════════════════════════════════════════════════════════
-   RSS FEED LIST  (AI / tech focused)
-═══════════════════════════════════════════════════════════ */
+const axios = require('axios');
+
+/* ═══════════════════════════════════════════════
+   SOURCES  — HN Algolia + RSS fallbacks
+═══════════════════════════════════════════════ */
 const RSS_FEEDS = [
-  { url: 'https://venturebeat.com/category/ai/feed/',                           source: 'VentureBeat'    },
-  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',   source: 'The Verge'      },
-  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',       source: 'TechCrunch'     },
-  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',            source: 'Ars Technica'   },
-  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                        source: 'Wired'          },
-  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',   source: 'IEEE Spectrum'  },
-  { url: 'https://www.artificialintelligence-news.com/feed/',                   source: 'AI News'        },
-  { url: 'https://syncedreview.com/feed/',                                      source: 'Synced Review'  },
+  { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'   },
+  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'     },
+  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'    },
+  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',           source: 'Ars Technica'  },
+  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                       source: 'Wired'         },
+  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum' },
+  { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'       },
+  { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review' },
 ];
 
-/* ═══════════════════════════════════════════════════════════
-   CATEGORY KEYWORD MAP
-═══════════════════════════════════════════════════════════ */
 const CATEGORY_KEYWORDS = {
-  robots:  ['robot','robotic','drone','autonomous vehicle','humanoid','boston dynamics','mechanical arm','warehouse robot','delivery robot'],
-  art:     ['dall-e','midjourney','stable diffusion','image generation','generative art','creative ai','ai music','suno','udio','video generation','runway','sora'],
-  gaming:  ['game','gaming','video game','minecraft','fortnite','esport','npc','unity engine','unreal engine','game dev'],
-  animals: ['animal','wildlife','species','ecology','biology','nature','ocean','bird','whale','endangered','conservation','pet'],
-  space:   ['space','nasa','astronaut','planet','satellite','telescope','mars','rocket','astronomy','cosmos','exoplanet','james webb'],
-  science: ['research','study','discovery','medical','health','brain','climate','quantum','physics','chemistry','cancer','drug','hospital','diagnosis'],
-  cool:    ['chatgpt','gpt-4','gemini','claude ai','llm','language model','breakthrough','chip','nvidia','openai','deepmind','anthropic','meta ai'],
+  robots:  ['robot','robotic','drone','autonomous','humanoid','mechanical'],
+  art:     ['dall-e','midjourney','stable diffusion','image generation','creative ai','suno','runway','sora','generative art'],
+  gaming:  ['game','gaming','video game','minecraft','esport','npc','unity','unreal'],
+  animals: ['animal','wildlife','species','ecology','biology','nature','ocean','bird','whale','conservation'],
+  space:   ['space','nasa','astronaut','planet','satellite','telescope','mars','rocket','astronomy'],
+  science: ['research','study','discovery','medical','health','brain','climate','quantum','cancer','diagnosis'],
+  cool:    ['chatgpt','gpt-4','gemini','claude','llm','language model','openai','deepmind','anthropic','nvidia'],
 };
-
 function detectCategory(title, summary) {
   const text = (title + ' ' + summary).toLowerCase();
-  for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+  for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS))
     if (kws.some(kw => text.includes(kw))) return cat;
-  }
   return 'cool';
 }
 
-/* ═══════════════════════════════════════════════════════════
-   IN-MEMORY CACHE
-═══════════════════════════════════════════════════════════ */
-const cache = {
-  articles:    [],
-  lastUpdated: null,
-  isRefreshing: false,
-};
+/* ═══════════════════════════════════════════════
+   NEWS CACHE
+═══════════════════════════════════════════════ */
+const cache = { articles: [], lastUpdated: null, isRefreshing: false };
 
-/* ═══════════════════════════════════════════════════════════
-   STEP 1 — SCRAPE RSS FEEDS
-═══════════════════════════════════════════════════════════ */
-async function scrapeFeed(feed) {
-  try {
-    const result = await parser.parseURL(feed.url);
-    return (result.items || []).slice(0, 10).map(item => ({
-      title:   (item.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
-      summary: (item.contentSnippet || item.description || '').replace(/<[^>]+>/g,'').slice(0, 500).trim(),
-      link:    item.link || '',
-      pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
-      source:  feed.source,
-    }));
-  } catch (err) {
-    console.warn(`  ⚠  ${feed.source}: ${err.message}`);
-    return [];
+// load from disk on startup so articles survive restarts
+try {
+  if (fs.existsSync(CACHE_FILE)) {
+    const saved = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+    cache.articles    = saved.articles    || [];
+    cache.lastUpdated = saved.lastUpdated ? new Date(saved.lastUpdated) : null;
+    console.log(`📦 Loaded ${cache.articles.length} cached articles from disk`);
   }
+} catch(e) { console.warn('⚠ Could not load cache from disk:', e.message); }
+
+/* ── fetch full article body from a URL ── */
+async function fetchArticleBody(url) {
+  try {
+    const res = await axios.get(url, {
+      timeout: 4000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0)' },
+      maxContentLength: 200000,
+    });
+    const html = res.data || '';
+    return html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 5000);
+  } catch { return ''; }
 }
 
-async function scrapeAllFeeds() {
-  console.log('📡 Scraping feeds...');
-  const settled = await Promise.allSettled(RSS_FEEDS.map(scrapeFeed));
-  const all = settled
-    .filter(r => r.status === 'fulfilled')
-    .flatMap(r => r.value)
-    .filter(a => a.title && a.title.length > 15);
+/* ── fetch HN stories ── */
+async function fetchHNStories() {
+  try {
+    const queries = ['artificial intelligence','openai','robotics','LLM','GPT','deepmind','anthropic','machine learning','AI art','AI gaming','AI animals','AI space','AI science'];
+    // fetch multiple queries in parallel
+    const results = await Promise.all(
+      queries.slice(0,5).map(q =>
+        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=10&numericFilters=points>20`, { timeout: 5000 })
+          .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
+          .catch(()=>[])
+      )
+    );
+    return results.flat();
+  } catch(e) { console.warn('⚠ HN failed:', e.message); return []; }
+}
 
-  // deduplicate by normalised title
-  const seen = new Set();
-  const dedup = [];
+/* ── scrape RSS feed ── */
+async function scrapeFeed(feed) {
+  try {
+    const r = await parser.parseURL(feed.url);
+    return (r.items || []).slice(0, 10).map(i => ({
+      title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
+      link:    i.link || '',
+      pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
+      source:  feed.source,
+      snippet: (i.contentSnippet || i.description || '').replace(/<[^>]+>/g,'').slice(0, 800).trim(),
+    }));
+  } catch(e) { console.warn(`⚠ ${feed.source}: ${e.message}`); return []; }
+}
+
+/* ── main pipeline ── */
+async function scrapeAllFeeds() {
+  console.log('📡 Fetching stories...');
+
+  const [hnResult, ...rssResults] = await Promise.allSettled([
+    fetchHNStories(),
+    ...RSS_FEEDS.map(scrapeFeed)
+  ]);
+
+  const hn  = hnResult.status === 'fulfilled' ? hnResult.value : [];
+  const rss = rssResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
+  const all = [...hn, ...rss].filter(a => a.title?.length > 15);
+
+  // deduplicate
+  const seen = new Set(), dedup = [];
   for (const item of all) {
     const key = item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,50);
     if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
+  dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+  const top = dedup.slice(0, 48); // grab top 48 to ensure 6 per category
+  console.log(`   → ${top.length} stories found`);
 
-  // newest first, keep top 24
-  dedup.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 24);
-  console.log(`   → ${top.length} unique articles scraped`);
-  return top;
+  // fetch all bodies in parallel
+  console.log('   → Fetching bodies in parallel...');
+  const bodies = await Promise.all(
+    top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
+  );
+
+  const withContent = top.map((a, i) => ({
+    ...a,
+    body: bodies[i] || a.snippet || '',
+  })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
+
+  console.log(`   → ${withContent.length} articles with content`);
+  return withContent.slice(0, 48);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   STEP 2 — CLAUDE REWRITE (all 3 reading levels at once)
-═══════════════════════════════════════════════════════════ */
 async function rewriteForKids(rawArticles) {
-  if (!rawArticles.length) return [];
-  console.log(`✍️  Rewriting ${rawArticles.length} articles with Claude...`);
+  if(!rawArticles.length) return [];
+  console.log(`✍️  Rewriting ${rawArticles.length} articles...`);
+  const BATCH=12; const results=[];
+  for(let i=0;i<rawArticles.length;i+=BATCH){
+    const batch=rawArticles.slice(i,i+BATCH);
+    const startId=i+1;
+    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,4000) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
+    const prompt=`You are a fun kids science writer for a magazine. Using the full article content below as your source material, write completely original articles in your own voice. Do NOT credit any source or publication.
 
-  // Send in batches of 12 to stay within token limits
-  const BATCH = 12;
-  const results = [];
-
-  for (let i = 0; i < rawArticles.length; i += BATCH) {
-    const batch = rawArticles.slice(i, i + BATCH);
-    const startId = i + 1;
-
-    const articleList = batch.map((a, j) =>
-      `[${startId + j}] ${a.source}\nTitle: ${a.title}\nSnippet: ${a.summary || '(none)'}`
-    ).join('\n\n');
-
-    const prompt = `You are a cheerful, accurate science reporter for kids. Rewrite each article in THREE reading levels.
-
-ARTICLES:
+STORIES:
 ${articleList}
 
-Return ONLY a valid JSON array — no markdown, no extra text.
-Each object:
-{
-  "id": <number matching brackets above>,
-  "headline": "Fun kid-friendly title, max 10 words",
-  "category": "<robots|art|science|gaming|animals|space|cool>",
-  "levels": {
-    "young":  { "summary": "2 very simple sentences for a 7-year-old",      "wow": "One fun fact, max 10 words" },
-    "middle": { "summary": "2-3 friendly sentences for a 10-year-old",      "wow": "One cool fact, max 14 words" },
-    "older":  { "summary": "3 informative sentences for a 13-year-old",     "wow": "One insightful fact, max 18 words" }
-  }
-}
-Rules: stay accurate, keep it positive and age-appropriate, no scary content.`;
+Return ONLY a valid JSON array, no markdown.
+Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": {
+  "young":  { "summary": "2 simple sentences for age 7", "full": "Write 4-5 paragraphs (3-4 sentences each) for age 7. Use very simple words. Make it fun and exciting like a story. Use \\n\\n between every paragraph.", "wow": "one specific surprising fact, max 10 words" },
+  "middle": { "summary": "2-3 sentences for age 10", "full": "Write 6-7 paragraphs (4-5 sentences each) for age 10. Include what happened, why it matters, how it works, who did it, and what comes next. Use \\n\\n between every paragraph.", "wow": "one specific interesting fact, max 14 words" },
+  "older":  { "summary": "3 sentences for age 13", "full": "Write 8-10 paragraphs (4-6 sentences each) for age 13. Include background context, what happened, the technical details, expert reactions, real world impact, and future implications. Use \\n\\n between every paragraph.", "wow": "one specific insightful fact, max 18 words" }
+} }
 
+CRITICAL:
+- "full" must be LONG — aim for roughly 400-600 words, like a full magazine article
+- MUST have multiple paragraphs separated by \\n\\n — never one big block of text
+- Give each paragraph its own focus: intro, background, what happened, how it works, why it matters, what's next
+- Every wow must be SPECIFIC — a real number, name, or detail from the story
+- NEVER use "big deal for AI", "AI is amazing", "this could change AI"
+- Base everything on the actual article content provided
+- Stay accurate, positive, age-appropriate`;
     try {
-      const msg = await anthropic.messages.create({
-        model:      'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        messages:   [{ role: 'user', content: prompt }],
-      });
-
-      let text = (msg.content || []).map(b => b.text || '').join('');
-      text = text.replace(/```json|```/g,'').trim();
-      const s = text.indexOf('['), e = text.lastIndexOf(']');
-      if (s === -1 || e === -1) throw new Error('No JSON array');
-
-      const rewritten = JSON.parse(text.slice(s, e + 1));
-      for (const rw of rewritten) {
-        const raw = rawArticles[rw.id - 1];
-        if (!raw) continue;
-        results.push({
-          id:       rw.id,
-          headline: rw.headline,
-          category: rw.category || detectCategory(raw.title, raw.summary),
-          source:   raw.source,
-          link:     raw.link,
-          pubDate:  raw.pubDate,
-          levels:   rw.levels,
-        });
+      const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:8000, messages:[{role:'user',content:prompt}] });
+      let text=(msg.content||[]).map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
+      const s=text.indexOf('['),e=text.lastIndexOf(']');
+      if(s===-1||e===-1) throw new Error('No JSON');
+      const rw=JSON.parse(text.slice(s,e+1));
+      for(const r of rw){
+        const raw=rawArticles[r.id-1]; if(!raw) continue;
+        results.push({ id:r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.summary), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
       }
-    } catch (err) {
-      console.warn(`  ⚠  Claude batch ${i}-${i+BATCH} failed: ${err.message}`);
-      // fallback — include raw
-      for (const a of batch) {
-        results.push({
-          id:       startId + batch.indexOf(a),
-          headline: a.title,
-          category: detectCategory(a.title, a.summary),
-          source:   a.source,
-          link:     a.link,
-          pubDate:  a.pubDate,
-          levels: {
-            young:  { summary: a.summary.slice(0,150) || a.title, wow: 'AI is amazing!' },
-            middle: { summary: a.summary.slice(0,250) || a.title, wow: 'This is a big deal for AI!' },
-            older:  { summary: a.summary.slice(0,400) || a.title, wow: 'This could change how AI develops.' },
-          },
-        });
-      }
+    } catch(err) {
+      console.warn(`⚠ Batch failed: ${err.message}`);
+      for(const a of batch) results.push({ id:startId+batch.indexOf(a), headline:a.title, category:detectCategory(a.title,a.summary), source:a.source, link:a.link, pubDate:a.pubDate,
+        levels:{ young:{summary:a.summary.slice(0,150)||a.title, full:a.summary||a.title, wow:'Scientists worked really hard to build this.'}, middle:{summary:a.summary.slice(0,250)||a.title, full:a.summary||a.title, wow:'Researchers spent months testing before releasing it.'}, older:{summary:a.summary.slice(0,400)||a.title, full:a.summary||a.title, wow:'The team ran thousands of experiments to get here.'} } });
     }
   }
-
-  console.log(`   → ${results.length} articles rewritten`);
+  console.log(`   → ${results.length} articles ready`);
   return results;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   MAIN REFRESH PIPELINE
-═══════════════════════════════════════════════════════════ */
 async function refreshNews() {
-  if (cache.isRefreshing) { console.log('⏭  Already refreshing, skipping.'); return; }
-  cache.isRefreshing = true;
-  console.log('\n🔄 Refresh started —', new Date().toLocaleTimeString());
-
-  try {
+  if(cache.isRefreshing){console.log('⏭ Already refreshing');return;}
+  cache.isRefreshing=true;
+  console.log('\n🔄 Refresh started —',new Date().toLocaleTimeString());
+  try{
     const raw      = await scrapeAllFeeds();
-    const articles = await rewriteForKids(raw);
-    cache.articles    = articles;
+    const rewritten = await rewriteForKids(raw);
+
+    // ensure 9 per category — group and pad
+    const CATS = ['robots','art','science','gaming','animals','space','cool'];
+    const byCategory = {};
+    CATS.forEach(c => byCategory[c] = []);
+    for(const a of rewritten){
+      const c = a.category || 'cool';
+      if(!byCategory[c]) byCategory[c] = [];
+      byCategory[c].push(a);
+    }
+
+    // if any category has fewer than 9, fill from 'cool' overflow or recycle
+    let overflow = rewritten.filter(a => byCategory[a.category]?.length > 9);
+    CATS.forEach(c => {
+      while(byCategory[c].length < 9 && overflow.length){
+        const extra = overflow.shift();
+        byCategory[c].push({...extra, category: c});
+      }
+    });
+
+    // flatten: 9 per category = 63 total, interleaved so all cats appear
+    const final = [];
+    for(let i=0;i<9;i++){
+      CATS.forEach(c => { if(byCategory[c][i]) final.push(byCategory[c][i]); });
+    }
+
+    cache.articles    = final;
     cache.lastUpdated = new Date();
-    console.log(`✅ Refresh complete — ${articles.length} articles ready\n`);
-  } catch (err) {
-    console.error('❌ Refresh pipeline error:', err.message);
-  } finally {
-    cache.isRefreshing = false;
-  }
+    // persist to disk so articles survive restarts
+    try {
+      fs.writeFileSync(CACHE_FILE, JSON.stringify({ articles: final, lastUpdated: cache.lastUpdated }));
+      console.log(`💾 Cache saved to disk`);
+    } catch(e) { console.warn('⚠ Could not save cache:', e.message); }
+    console.log(`✅ ${final.length} articles cached (${CATS.map(c=>`${c}:${byCategory[c].length}`).join(', ')})\n`);
+  }catch(e){console.error('❌ Refresh error:',e.message);}
+  finally{cache.isRefreshing=false;}
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
+   AUTH HELPERS
+═══════════════════════════════════════════════ */
+function signToken(userId) {
+  return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '30d' });
+}
+function authMiddleware(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Not logged in' });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch { res.status(401).json({ error: 'Invalid or expired token' }); }
+}
+function isSubscribed(userId) {
+  const user = db.get('users').find({ id: userId }).value();
+  if (!user) return false;
+  return user.subscriptionStatus === 'active';
+}
+
+/* ═══════════════════════════════════════════════
    EXPRESS APP
-═══════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════ */
 const app = express();
+
+// raw body for Stripe webhooks BEFORE json middleware
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+app.use('/api/', rateLimit({ windowMs:15*60*1000, max:120, standardHeaders:true, legacyHeaders:false }));
+app.use(express.static(path.join(__dirname,'public')));
 
-// Rate limiter on API routes
-app.use('/api/', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX || '120'),
-  message: { error: 'Too many requests — slow down a bit!' },
-  standardHeaders: true,
-  legacyHeaders: false,
-}));
+/* ─── AUTH ROUTES ─────────────────────────────── */
 
-// Static frontend
-app.use(express.static(path.join(__dirname, 'public')));
+// POST /api/auth/signup
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
-/* ── GET /api/news ─────────────────────────────────────── */
+  const existing = db.get('users').find({ email: email.toLowerCase() }).value();
+  if (existing) return res.status(400).json({ error: 'Email already registered' });
+
+  const hash = await bcrypt.hash(password, 10);
+  const id   = Date.now().toString();
+  db.get('users').push({
+    id, email: email.toLowerCase(), passwordHash: hash,
+    stripeCustomerId: null, subscriptionStatus: 'free',
+    subscriptionId: null, createdAt: new Date().toISOString()
+  }).write();
+
+  res.json({ token: signToken(id), email: email.toLowerCase(), subscribed: false });
+});
+
+// POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = db.get('users').find({ email: email?.toLowerCase() }).value();
+  if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+
+  const match = await bcrypt.compare(password, user.passwordHash);
+  if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+
+  res.json({ token: signToken(user.id), email: user.email, subscribed: user.subscriptionStatus === 'active' });
+});
+
+// GET /api/auth/me
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  const user = db.get('users').find({ id: req.user.id }).value();
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ email: user.email, subscribed: user.subscriptionStatus === 'active', status: user.subscriptionStatus });
+});
+
+/* ─── STRIPE ROUTES ───────────────────────────── */
+
+// POST /api/stripe/checkout  — create checkout session
+app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
+  const PROMO_COUPON_ID = process.env.STRIPE_PROMO_COUPON_ID;
+  const promoRequested = req.body?.usePromo === true;
+  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
+  if (!PRICE_ID) return res.status(500).json({ error: 'Stripe price ID not configured' });
+  const user = db.get('users').find({ id: req.user.id }).value();
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.subscriptionStatus === 'active') return res.status(400).json({ error: 'Already subscribed' });
+
+  try {
+    const sessionParams = {
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      customer_email: user.stripeCustomerId ? undefined : user.email,
+      customer: user.stripeCustomerId || undefined,
+      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      subscription_data: { trial_period_days: 7 },
+      success_url: `${APP_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${APP_URL}/?canceled=1`,
+      metadata:    { userId: user.id },
+    };
+    if (isPromo) sessionParams.discounts = [{ coupon: PROMO_COUPON_ID }];
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    res.json({ url: session.url });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/stripe/portal  — manage/cancel subscription
+app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
+  const user = db.get('users').find({ id: req.user.id }).value();
+  if (!user?.stripeCustomerId) return res.status(400).json({ error: 'No subscription found' });
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer:   user.stripeCustomerId,
+      return_url: APP_URL,
+    });
+    res.json({ url: session.url });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/stripe/webhook  — Stripe events
+app.post('/api/stripe/webhook', (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch(e) { console.error('Webhook error:', e.message); return res.status(400).send(`Webhook Error: ${e.message}`); }
+
+  const session      = event.data.object;
+  const customerId   = session.customer;
+  const userId       = session.metadata?.userId || session.client_reference_id;
+  const subStatus    = session.status;
+
+  switch(event.type) {
+    case 'checkout.session.completed': {
+      const uid = session.metadata?.userId;
+      if(uid) db.get('users').find({id:uid}).assign({ stripeCustomerId: customerId, subscriptionStatus:'active', subscriptionId: session.subscription }).write();
+      break;
+    }
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted': {
+      const status = event.data.object.status; // active, canceled, past_due, etc.
+      const sub    = event.data.object;
+      const user   = db.get('users').find({ stripeCustomerId: sub.customer }).value();
+      if(user) db.get('users').find({id:user.id}).assign({ subscriptionStatus: status==='active'?'active':'canceled', subscriptionId: sub.id }).write();
+      break;
+    }
+    case 'invoice.payment_failed': {
+      const user = db.get('users').find({ stripeCustomerId: customerId }).value();
+      if(user) db.get('users').find({id:user.id}).assign({ subscriptionStatus:'past_due' }).write();
+      break;
+    }
+  }
+  res.json({ received: true });
+});
+
+/* ─── NEWS API ────────────────────────────────── */
 app.get('/api/news', (req, res) => {
   const level    = ['young','middle','older'].includes(req.query.level) ? req.query.level : 'middle';
   const category = req.query.category || 'all';
-  const limit    = Math.min(parseInt(req.query.limit || '12'), 30);
+  const preview  = req.query.preview === 'true';
+
+  // auth check
+  let subscribed = false;
+  const header = req.headers.authorization || '';
+  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if(token) {
+    try { const decoded=jwt.verify(token,JWT_SECRET); subscribed=isSubscribed(decoded.id); } catch{}
+  }
 
   let articles = cache.articles;
-  if (category !== 'all') articles = articles.filter(a => a.category === category);
-  articles = articles.slice(0, limit);
 
-  const shaped = articles.map(a => ({
+  // build free set: 6 per category guaranteed
+  const CATS = ['robots','art','science','gaming','animals','space','cool'];
+  let freeArticles = [];
+  if(!subscribed){
+    const byCat = {};
+    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,6));
+    freeArticles = CATS.flatMap(c => byCat[c]); // up to 42 free articles (6 × 7 cats)
+  }
+
+  // filter by category for display
+  if(category !== 'all'){
+    articles = articles.filter(a=>a.category===category);
+    if(!subscribed) freeArticles = freeArticles.filter(a=>a.category===category);
+  }
+
+  const freeIds = new Set(freeArticles.map(a=>a.id));
+  const lockedArticles = subscribed ? [] : articles.filter(a=>!freeIds.has(a.id));
+  const sliced = subscribed ? articles.slice(0,63) : freeArticles;
+  const hasMore = !subscribed && lockedArticles.length > 0;
+
+  const shaped = sliced.map(a => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
-    source:   a.source,
-    link:     a.link,
     pubDate:  a.pubDate,
     summary:  a.levels?.[level]?.summary || '',
-    wow:      a.levels?.[level]?.wow     || '',
+    full:     a.levels?.[level]?.full || '',
+    wow:      a.levels?.[level]?.wow || '',
+    locked:   false,
   }));
 
-  res.json({
-    ok:          true,
-    count:       shaped.length,
-    total:       cache.articles.length,
-    lastUpdated: cache.lastUpdated,
-    isRefreshing: cache.isRefreshing,
-    articles:    shaped,
-  });
+  const lockedShaped = lockedArticles.map(a => ({
+    id:       a.id,
+    headline: a.headline,
+    category: a.category,
+    pubDate:  a.pubDate,
+    summary:  (a.levels?.[level]?.summary || '').split('.')[0] + '...',
+    full:     '',
+    wow:      '',
+    locked:   true,
+  }));
+
+  res.json({ ok:true, count:shaped.length, total:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, hasMore, articles:[...shaped, ...lockedShaped] });
 });
 
-/* ── GET /api/status ───────────────────────────────────── */
-app.get('/api/status', (req, res) => {
-  res.json({
-    ok:           true,
-    version:      '1.0.0',
-    articleCount: cache.articles.length,
-    lastUpdated:  cache.lastUpdated,
-    isRefreshing: cache.isRefreshing,
-    feeds:        RSS_FEEDS.map(f => f.source),
-    refreshCron:  REFRESH_CRON,
-    env:          NODE_ENV,
-  });
+/* ─── STATUS / ADMIN ──────────────────────────── */
+app.get('/api/promo', (req, res) => {
+  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
 });
 
-/* ── POST /api/admin/refresh ───────────────────────────── */
-app.post('/api/admin/refresh', (req, res) => {
-  const token = req.headers['x-admin-secret'] || req.body?.secret;
-  if (token !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
-  res.json({ ok: true, message: 'Refresh triggered.' });
-  refreshNews();
+app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
+
+app.post('/api/admin/refresh', (req,res) => {
+  if((req.headers['x-admin-secret']||req.body?.secret)!==ADMIN_SECRET) return res.status(403).json({error:'Forbidden'});
+  res.json({ok:true,message:'Refresh started.'}); refreshNews();
 });
 
-/* ── catch-all → index.html ────────────────────────────── */
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('*', (_,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 
-/* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    STARTUP
-═══════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════ */
 app.listen(PORT, async () => {
-  console.log(`\n🚀 Kids AI Buzz running → http://localhost:${PORT}`);
-  console.log(`📺 ${RSS_FEEDS.length} RSS feeds configured`);
-  console.log(`🔄 Auto-refresh: ${REFRESH_CRON}\n`);
-  await refreshNews();
-  cron.schedule(REFRESH_CRON, () => { console.log('[cron] Scheduled refresh'); refreshNews(); });
+  console.log(`\n🚀 Kids AI Buzz → http://localhost:${PORT}`);
+  console.log(`💳 Stripe enabled: ${!!process.env.STRIPE_SECRET_KEY}`);
+  console.log(`📡 ${RSS_FEEDS.length} RSS feeds | 🔄 Cron: ${REFRESH_CRON}\n`);
+
+  // only scrape on startup if cache is empty or older than 2 hours
+  const cacheAge = cache.lastUpdated ? (Date.now() - new Date(cache.lastUpdated)) : Infinity;
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  if (cache.articles.length === 0 || cacheAge > TWO_HOURS) {
+    console.log('🔄 Cache is stale or empty — refreshing...');
+    await refreshNews();
+  } else {
+    console.log(`✅ Using cached articles (${cache.articles.length} articles, ${Math.round(cacheAge/60000)}m old)`);
+  }
+
+  cron.schedule(REFRESH_CRON, () => { console.log('[cron] Refresh'); refreshNews(); });
 });
