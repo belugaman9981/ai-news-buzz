@@ -196,6 +196,12 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .plan.featured .plan-btn:hover{opacity:.88}
 .plan-btn:hover{border-color:var(--purple);color:var(--purple)}
 
+.section-close{position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.section-close:hover{background:rgba(255,255,255,.3)}
+.section-close.dark{color:var(--muted);background:var(--border)}
+.section-close.dark:hover{background:var(--border);color:var(--text)}
+.missing-section,.countdown-section,.compare-section{position:relative}
+
 /* ══ WHAT YOU'RE MISSING ══ */
 .missing-section{position:relative;z-index:1;background:var(--text);color:#fff;padding:4rem 2rem}
 .missing-inner{max-width:1100px;margin:0 auto}
@@ -386,6 +392,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <!-- ══ WHAT YOU'RE MISSING ══ -->
 <section class="missing-section" id="missingSec" style="display:none">
   <div class="missing-inner">
+    <button class="section-close" onclick="document.getElementById('missingSec').style.display='none'">✕</button>
     <div class="missing-header">
       <div class="missing-icon">👀</div>
       <h2>What you're missing...</h2>
@@ -399,6 +406,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <!-- ══ COUNTDOWN TIMER ══ -->
 <section class="countdown-section" id="countdownSec" style="display:none">
   <div class="countdown-inner">
+    <button class="section-close" onclick="document.getElementById('countdownSec').style.display='none'">✕</button>
     <div class="countdown-badge">⏰ LIMITED TIME OFFER</div>
     <h2>Subscribe for <span id="cdPrice">$1.99</span> your first month!</h2>
     <p>We have a special limited time offer — subscribe before June 1st at half price. This offer expires in:</p>
@@ -419,6 +427,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <!-- ══ WHAT SUBSCRIBERS GET ══ -->
 <section class="compare-section" id="pricing">
   <div class="compare-inner">
+    <button class="section-close dark" onclick="document.getElementById('pricing').style.display='none'">✕</button>
     <h2>What subscribers get 🌟</h2>
     <p>Everything you need to stay on top of the AI world — explained for kids!</p>
     <div class="compare-table">
