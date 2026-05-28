@@ -47,6 +47,16 @@ const RSS_FEEDS = [
   { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum' },
   { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'       },
   { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review' },
+  // gaming
+  { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'      },
+  { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'        },
+  // space
+  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'          },
+  { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'     },
+  // animals / nature
+  { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'       },
+  // art / creative
+  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq' },
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -164,17 +174,17 @@ async function scrapeAllFeeds() {
   })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
 
   console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 48);
+  return withContent.slice(0, 36);
 }
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
   console.log(`✍️  Rewriting ${rawArticles.length} articles...`);
-  const BATCH=12; const results=[];
+  const BATCH=6; const results=[];
   for(let i=0;i<rawArticles.length;i+=BATCH){
     const batch=rawArticles.slice(i,i+BATCH);
     const startId=i+1;
-    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,4000) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
+    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,1500) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
     const prompt=`You are a fun kids science writer for a magazine. Using the full article content below as your source material, write completely original articles in your own voice. Do NOT credit any source or publication.
 
 STORIES:
@@ -222,6 +232,7 @@ async function refreshNews() {
   try{
     const raw      = await scrapeAllFeeds();
     const rewritten = await rewriteForKids(raw);
+    if(!rewritten || !rewritten.length){ console.warn('⚠ No articles rewritten'); cache.isRefreshing=false; return; }
 
     // ensure 9 per category — group and pad
     const CATS = ['robots','art','science','gaming','animals','space','cool'];
