@@ -33,7 +33,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const stripe    = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const parser    = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 
-const axios = require('axios');
+const axios = require('axios'); 
 
 /* ═══════════════════════════════════════════════
    SOURCES  — HN Algolia + RSS fallbacks
