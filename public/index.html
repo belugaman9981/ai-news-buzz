@@ -137,7 +137,28 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .card{cursor:pointer}
 .read-more{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--purple);margin-top:4px}
 
-/* LOCKED CARDS */
+/* SEARCH */
+.search-bar{position:relative;z-index:1;padding:0 2rem 1.5rem;display:flex;justify-content:center;animation:fadeUp .5s .25s ease both}
+.search-wrap{position:relative;width:100%;max-width:520px}
+.search-input{width:100%;padding:11px 20px 11px 44px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+.search-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,111,247,.15)}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;opacity:.5}
+.search-clear{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;opacity:.4;display:none}
+.search-clear.show{display:block}
+body.dark .search-input{background:var(--surface);border-color:var(--border)}
+
+/* RELATED ARTICLES */
+.related-section{margin-top:1.5rem;padding-top:1.5rem;border-top:1.5px solid var(--border)}
+.related-title{font-family:'Lilita One',sans-serif;font-size:18px;color:var(--text);margin-bottom:1rem}
+.related-grid{display:flex;flex-direction:column;gap:10px}
+.related-card{display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:var(--r-sm);border:1.5px solid var(--border);cursor:pointer;transition:all .15s;background:var(--bg)}
+.related-card:hover{border-color:var(--purple);transform:translateX(4px)}
+.related-card-emoji{font-size:22px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.related-card-info{flex:1;min-width:0}
+.related-card-cat{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.related-card-title{font-size:14px;font-weight:800;line-height:1.3;color:var(--text)}
+.related-card-summary{font-size:12px;color:var(--muted);font-weight:600;margin-top:3px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
 .card.locked{cursor:pointer;overflow:hidden}
 .card.locked .c-body{filter:blur(4px);user-select:none;pointer-events:none;opacity:.7}
 .card.locked .c-wow{display:none}
@@ -395,6 +416,15 @@ body.dark .modal{background:var(--surface)}
   <button class="cat" data-cat="cool">💡 Cool stuff</button>
 </div>
 
+<!-- SEARCH BAR -->
+<div class="search-bar">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchInput" type="text" placeholder="Search articles..." oninput="onSearch(this.value)" onkeydown="if(event.key==='Escape'){clearSearch()}">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+  </div>
+</div>
+
 <!-- SOCIAL PROOF -->
 <div class="social-proof">
   <div class="proof-item"><strong>84</strong> fresh AI stories</div>
@@ -635,8 +665,12 @@ body.dark .modal{background:var(--surface)}
     <button class="art-close" onclick="closeArtModal()">✕</button>
     <span class="art-tag" id="artTag"></span>
     <h2 class="art-title" id="artTitle"></h2>
-    <p class="art-body" id="artBody"></p>
+    <div class="art-body" id="artBody"></div>
     <div class="art-wow"><span>💬</span><span id="artWow"></span></div>
+    <div class="related-section" id="relatedSection" style="display:none">
+      <div class="related-title">📖 Related stories</div>
+      <div class="related-grid" id="relatedGrid"></div>
+    </div>
   </div>
 </div>
 
@@ -686,12 +720,24 @@ function onLevelChange(){activeLevel=document.getElementById('level').value;load
 
 /* ── render ── */
 function renderCards(){
-  const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
+  let list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
+
+  // search filter
+  if(searchQuery){
+    list = allArticles.filter(a =>
+      (a.headline||'').toLowerCase().includes(searchQuery) ||
+      (a.summary||'').toLowerCase().includes(searchQuery) ||
+      (LBL[a.category]||'').toLowerCase().includes(searchQuery)
+    );
+  }
+
   const free   = list.filter(a=>!a.locked);
   const locked = list.filter(a=>a.locked);
-  const lbl = activeCat==='all'
-    ? `Latest stories — ${free.length} free + ${locked.length} subscriber`
-    : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${free.length} free + ${locked.length} locked`;
+  const lbl = searchQuery
+    ? `🔍 "${searchQuery}" — ${free.length} results`
+    : activeCat==='all'
+      ? `Latest stories — ${free.length} free + ${locked.length} subscriber`
+      : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${free.length} free + ${locked.length} locked`;
   document.getElementById('secLbl').textContent = lbl;
 
   if(!list.length){
@@ -865,6 +911,7 @@ function openArticle(i){
   document.getElementById('artOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   trackOpen();
+  showRelated(a);
 }
 function closeArtModal(){
   document.getElementById('artOverlay').classList.remove('open');
@@ -961,6 +1008,48 @@ function submitSuggest(){
   setTimeout(()=>{ document.getElementById('suggestOk').style.display='none'; }, 4000);
 }
 
+
+/* ── search ── */
+let searchQuery = '';
+function onSearch(val){
+  searchQuery = val.trim().toLowerCase();
+  document.getElementById('searchClear').classList.toggle('show', searchQuery.length > 0);
+  if(searchQuery){
+    document.querySelectorAll('.cat').forEach(b=>b.classList.remove('active'));
+  } else {
+    document.querySelector(`.cat[data-cat="${activeCat}"]`)?.classList.add('active');
+  }
+  renderCards();
+}
+function clearSearch(){
+  searchQuery='';
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchClear').classList.remove('show');
+  document.querySelector(`.cat[data-cat="${activeCat}"]`)?.classList.add('active');
+  renderCards();
+}
+
+/* ── related articles ── */
+function showRelated(currentArticle){
+  const related = allArticles
+    .filter(a => !a.locked && a.id !== currentArticle.id)
+    .filter(a => a.category === currentArticle.category ||
+      (a.headline||'').toLowerCase().split(' ').some(w => w.length>4 && (currentArticle.headline||'').toLowerCase().includes(w)))
+    .slice(0, 3);
+  const sec = document.getElementById('relatedSection');
+  if(!related.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  const bgColors={robots:'var(--teal-lt)',art:'var(--pink-lt)',science:'var(--blue-lt)',gaming:'var(--purple-lt)',animals:'var(--green-lt)',space:'var(--coral-lt)',cool:'var(--amber-lt)'};
+  document.getElementById('relatedGrid').innerHTML = related.map(a=>`
+    <div class="related-card" onclick="closeArtModal();setTimeout(()=>openArticle(${allArticles.indexOf(a)}),150)">
+      <div class="related-card-emoji" style="background:${bgColors[a.category]||'var(--purple-lt)'}">${EMO[a.category]||'✨'}</div>
+      <div class="related-card-info">
+        <div class="related-card-cat">${LBL[a.category]||a.category}</div>
+        <div class="related-card-title">${esc(a.headline)}</div>
+        <div class="related-card-summary">${esc(a.summary)}</div>
+      </div>
+    </div>`).join('');
+}
 
 function startCountdown(){
   const end = new Date('2026-06-01T00:00:00Z');
