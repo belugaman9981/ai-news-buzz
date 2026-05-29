@@ -251,8 +251,50 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .compare-btn{padding:9px 20px;border-radius:99px;border:none;background:var(--purple);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer}
 .compare-btn:hover{opacity:.88}
 
-/* FOOTER */
-.ftr{position:relative;z-index:1;background:var(--text);color:#fff;padding:3rem 2rem 2rem}
+/* DARK MODE */
+body.dark {
+  --bg:#0F0D1A; --surface:#1A1630; --text:#F0EDFF; --muted:#9B93C0;
+  --border:#2A2545; --purple-lt:#1E1A3A; --purple-dk:#A99EFF;
+  --teal-lt:#0D2820; --pink-lt:#2A0F1E; --blue-lt:#0D1E30;
+  --green-lt:#0D2018; --coral-lt:#2A100D; --amber-lt:#2A200A;
+}
+body.dark .hdr{background:rgba(15,13,26,.92)}
+body.dark .blob-1{opacity:.18} body.dark .blob-2{opacity:.14} body.dark .blob-3{opacity:.1}
+body.dark .promo-banner{filter:brightness(.9)}
+body.dark .sk{background:linear-gradient(90deg,var(--border) 25%,#2A2545 50%,var(--border) 75%)}
+body.dark .compare-head{background:var(--purple-lt)}
+body.dark .compare-pro{background:rgba(124,111,247,.1)}
+body.dark .social-proof{background:var(--surface)}
+body.dark .missing-section{background:#0A0814}
+body.dark input,body.dark select{background:var(--surface);color:var(--text);border-color:var(--border)}
+body.dark .art-modal{background:var(--surface)}
+body.dark .modal{background:var(--surface)}
+.dark-btn{background:none;border:1.5px solid var(--border);border-radius:99px;padding:6px 10px;cursor:pointer;font-size:16px;transition:all .15s;color:var(--text)}
+.dark-btn:hover{border-color:var(--purple)}
+
+/* FUN FACTS TICKER */
+.facts-bar{position:relative;z-index:1;background:var(--purple);color:#fff;padding:10px 0;overflow:hidden;white-space:nowrap}
+.facts-track{display:inline-flex;gap:0;animation:ticker 40s linear infinite}
+.facts-track:hover{animation-play-state:paused}
+.fact-item{display:inline-flex;align-items:center;gap:10px;padding:0 3rem;font-size:13px;font-weight:700}
+.fact-dot{width:6px;height:6px;background:var(--amber);border-radius:50%;flex-shrink:0}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* SUGGESTIONS */
+.suggest-section{position:relative;z-index:1;background:var(--surface);border-top:1.5px solid var(--border);padding:3rem 2rem;text-align:center}
+.suggest-inner{max-width:560px;margin:0 auto}
+.suggest-inner h3{font-family:'Lilita One',sans-serif;font-size:24px;margin-bottom:.4rem;color:var(--text)}
+.suggest-inner p{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:1.25rem}
+.suggest-form{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.suggest-input{flex:1;min-width:200px;padding:11px 16px;border-radius:99px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;color:var(--text);background:var(--bg);outline:none}
+.suggest-input:focus{border-color:var(--purple)}
+.suggest-btn{padding:11px 22px;border-radius:99px;border:none;background:var(--purple);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer}
+.suggest-btn:hover{opacity:.88}
+.suggest-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:1rem}
+.chip{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);background:var(--bg);font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s}
+.chip:hover{border-color:var(--purple);color:var(--purple)}
+.suggest-ok{font-size:14px;font-weight:800;color:var(--teal);display:none;margin-top:.75rem}
+
 .ftr-g{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:2rem}
 .ftr-brand .logo{color:#fff}.ftr-brand .logo .bz{color:var(--amber)}
 .ftr-brand p{font-size:13px;opacity:.6;font-weight:600;line-height:1.7;margin-top:.75rem;max-width:260px}
@@ -311,6 +353,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
   <div class="hdr-right">
     <span class="lu-badge" id="luBadge">Loading...</span>
+    <button class="dark-btn" id="darkBtn" onclick="toggleDark()" title="Toggle dark mode">🌙</button>
     <div class="lvl-pill">Level:
       <select id="level" onchange="onLevelChange()">
         <option value="young">Ages 6–8</option>
@@ -337,7 +380,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 <section class="hero">
   <div class="hero-badge">🤖 Real AI news — made for kids!</div>
   <h1>The <span class="hl">coolest</span> AI news,<br>explained just for you</h1>
-  <p>Scraped fresh from 8 top tech sources every 2 hours — robots, art, science & more!</p>
+  <p>Scraped fresh from 14 top tech sources every 30 minutes — robots, art, science & more!</p>
 </section>
 
 <!-- CATS -->
@@ -354,11 +397,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 
 <!-- SOCIAL PROOF -->
 <div class="social-proof">
-  <div class="proof-item"><strong>63</strong> fresh AI stories</div>
+  <div class="proof-item"><strong>84</strong> fresh AI stories</div>
   <div class="proof-item"><strong>7</strong> topic categories</div>
   <div class="proof-item"><strong>3</strong> reading levels</div>
   <div class="proof-item"><strong>⭐⭐⭐⭐⭐</strong> loved by kids</div>
-  <div class="proof-item"><strong>Updated</strong> every 2 hours</div>
+  <div class="proof-item"><strong>Updated</strong> every 30 mins</div>
 </div>
 
 <!-- MAIN GRID -->
@@ -376,7 +419,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
   <div class="paywall-card">
     <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
     <h2>Unlock all stories!</h2>
-    <p>You're seeing 6 of <span id="totalCount">63</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
+    <p>You're seeing 3 of <span id="totalCount">84</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
     <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
     <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
     <div class="perks">
@@ -491,6 +534,32 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
       </div>
       <div class="promo-feedback" id="promoFeedback"></div>
     </div>
+  </div>
+</section>
+
+<!-- FUN FACTS TICKER -->
+<div class="facts-bar" id="factsBar">
+  <div class="facts-track" id="factsTrack"></div>
+</div>
+
+<!-- TOPIC SUGGESTIONS -->
+<section class="suggest-section">
+  <div class="suggest-inner">
+    <h3>💡 Suggest a topic!</h3>
+    <p>What AI story do you want to see? Tell us and we'll find it!</p>
+    <div class="suggest-chips">
+      <span class="chip" onclick="setSuggest('AI in sports')">⚽ AI in sports</span>
+      <span class="chip" onclick="setSuggest('AI pets and animals')">🐶 AI & pets</span>
+      <span class="chip" onclick="setSuggest('AI music making')">🎵 AI music</span>
+      <span class="chip" onclick="setSuggest('AI helping doctors')">🏥 AI doctors</span>
+      <span class="chip" onclick="setSuggest('AI in movies')">🎬 AI movies</span>
+      <span class="chip" onclick="setSuggest('AI drawing and art')">✏️ AI drawing</span>
+    </div>
+    <div class="suggest-form">
+      <input class="suggest-input" id="suggestInput" type="text" placeholder="Type your idea here..." maxlength="100">
+      <button class="suggest-btn" onclick="submitSuggest()">Send it!</button>
+    </div>
+    <div class="suggest-ok" id="suggestOk">🎉 Thanks! We'll try to cover that soon!</div>
   </div>
 </section>
 
@@ -843,7 +912,56 @@ async function checkPromo(){
   }catch{}
 }
 
-/* ── countdown timer ── */
+/* ── dark mode ── */
+function toggleDark(){
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('kab_dark', isDark ? '1' : '0');
+  document.getElementById('darkBtn').textContent = isDark ? '☀️' : '🌙';
+}
+if(localStorage.getItem('kab_dark')==='1'){
+  document.body.classList.add('dark');
+  document.getElementById('darkBtn').textContent='☀️';
+}
+
+/* ── fun facts ticker ── */
+const FUN_FACTS = [
+  '🤖 The word "robot" comes from a Czech word meaning "forced labour"',
+  '🧠 GPT-4 was trained on roughly 1 trillion words of text',
+  '🎨 AI can generate a brand new image in under 1 second',
+  '🚗 Self-driving cars use AI to make 30 decisions per second',
+  '🌍 Over 50% of internet traffic is generated by bots and AI',
+  '📚 AI can now read and summarise a 300-page book in 30 seconds',
+  '🎮 The first AI to beat a world chess champion was Deep Blue in 1997',
+  '🐋 Scientists use AI to decode whale songs and dolphin clicks',
+  '🚀 NASA uses AI to help plan routes for Mars rovers',
+  '💊 AI discovered a new antibiotic in 2020 by testing 100 million molecules',
+  '🎵 AI can compose music in the style of any artist in seconds',
+  '🌱 AI is helping farmers predict crop diseases before they spread',
+  '👁️ AI can recognise your face from a crowd of 1 million people',
+  '⚡ Google uses AI to reduce energy use in its data centres by 40%',
+  '🦾 The world\'s most advanced humanoid robot can do parkour',
+];
+function initTicker(){
+  const doubled = [...FUN_FACTS, ...FUN_FACTS];
+  document.getElementById('factsTrack').innerHTML = doubled.map(f=>`
+    <span class="fact-item"><span class="fact-dot"></span>${f}</span>`).join('');
+}
+
+/* ── suggestions ── */
+function setSuggest(text){ document.getElementById('suggestInput').value = text; }
+function submitSuggest(){
+  const val = document.getElementById('suggestInput').value.trim();
+  if(!val){ alert('Please type a suggestion first!'); return; }
+  // store locally (in production connect to a backend endpoint or email service)
+  const suggestions = JSON.parse(localStorage.getItem('kab_suggestions')||'[]');
+  suggestions.push({ text: val, date: new Date().toISOString() });
+  localStorage.setItem('kab_suggestions', JSON.stringify(suggestions));
+  document.getElementById('suggestInput').value = '';
+  document.getElementById('suggestOk').style.display = 'block';
+  setTimeout(()=>{ document.getElementById('suggestOk').style.display='none'; }, 4000);
+}
+
+
 function startCountdown(){
   const end = new Date('2026-06-01T00:00:00Z');
   function tick(){
@@ -879,6 +997,7 @@ if(new URLSearchParams(window.location.search).get('canceled')==='1'){
   setTimeout(()=>alert('No worries! You can subscribe anytime.'),500);
 }
 startCountdown();
+initTicker();
 checkPromo();
 checkSession().then(loadNews);
 setInterval(loadNews,5*60*1000);

@@ -21,7 +21,7 @@ const CACHE_FILE  = path.join(__dirname, 'articles-cache.json');
 ═══════════════════════════════════════════════ */
 const PORT          = process.env.PORT          || 3000;
 const ADMIN_SECRET  = process.env.ADMIN_SECRET  || 'changeme';
-const REFRESH_CRON  = process.env.REFRESH_CRON  || '0 */2 * * *';
+const REFRESH_CRON  = process.env.REFRESH_CRON  || '*/30 * * * *';
 const JWT_SECRET    = process.env.JWT_SECRET    || 'change-this-jwt-secret';
 const APP_URL       = process.env.APP_URL       || `http://localhost:${PORT}`;
 const PRICE_ID      = process.env.STRIPE_PRICE_ID;
@@ -115,8 +115,8 @@ async function fetchHNStories() {
     const queries = ['artificial intelligence','openai','robotics','LLM','GPT','deepmind','anthropic','machine learning','AI art','AI gaming','AI animals','AI space','AI science'];
     // fetch multiple queries in parallel
     const results = await Promise.all(
-      queries.slice(0,5).map(q =>
-        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=10&numericFilters=points>20`, { timeout: 5000 })
+      queries.slice(0,7).map(q =>
+        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>20`, { timeout: 5000 })
           .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
           .catch(()=>[])
       )
@@ -159,7 +159,7 @@ async function scrapeAllFeeds() {
     if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
   dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 48); // grab top 48 to ensure 6 per category
+  const top = dedup.slice(0, 100); // grab top 100 to ensure 12 per category
   console.log(`   → ${top.length} stories found`);
 
   // fetch all bodies in parallel
@@ -174,7 +174,7 @@ async function scrapeAllFeeds() {
   })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
 
   console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 36);
+  return withContent.slice(0, 84);
 }
 
 async function rewriteForKids(rawArticles) {
@@ -245,17 +245,17 @@ async function refreshNews() {
     }
 
     // if any category has fewer than 9, fill from 'cool' overflow or recycle
-    let overflow = rewritten.filter(a => byCategory[a.category]?.length > 9);
+    let overflow = rewritten.filter(a => byCategory[a.category]?.length > 12);
     CATS.forEach(c => {
-      while(byCategory[c].length < 9 && overflow.length){
+      while(byCategory[c].length < 12 && overflow.length){
         const extra = overflow.shift();
         byCategory[c].push({...extra, category: c});
       }
     });
 
-    // flatten: 9 per category = 63 total, interleaved so all cats appear
+    // flatten: 12 per category = 84 total
     const final = [];
-    for(let i=0;i<9;i++){
+    for(let i=0;i<12;i++){
       CATS.forEach(c => { if(byCategory[c][i]) final.push(byCategory[c][i]); });
     }
 
@@ -452,8 +452,8 @@ app.get('/api/news', (req, res) => {
   let freeArticles = [];
   if(!subscribed){
     const byCat = {};
-    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,6));
-    freeArticles = CATS.flatMap(c => byCat[c]); // up to 42 free articles (6 × 7 cats)
+    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,3));
+    freeArticles = CATS.flatMap(c => byCat[c]); // up to 21 free articles (3 × 7 cats)
   }
 
   // filter by category for display
@@ -464,7 +464,7 @@ app.get('/api/news', (req, res) => {
 
   const freeIds = new Set(freeArticles.map(a=>a.id));
   const lockedArticles = subscribed ? [] : articles.filter(a=>!freeIds.has(a.id));
-  const sliced = subscribed ? articles.slice(0,63) : freeArticles;
+  const sliced = subscribed ? articles.slice(0,84) : freeArticles;
   const hasMore = !subscribed && lockedArticles.length > 0;
 
   const shaped = sliced.map(a => ({
