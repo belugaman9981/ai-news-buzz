@@ -590,7 +590,8 @@ app.get('/api/news', (req, res) => {
   }));
 
   // locked previews only on first page
-  const lockedShaped = page === 1 ? lockedArticles.map(a => ({
+  // only show 6 locked teasers — enough to entice without being annoying
+  const lockedShaped = page === 1 ? lockedArticles.slice(0, 6).map(a => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
