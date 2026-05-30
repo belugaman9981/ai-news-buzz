@@ -179,49 +179,61 @@ async function scrapeAllFeeds() {
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  console.log(`✍️  Rewriting ${rawArticles.length} articles...`);
-  const BATCH=6; const results=[];
-  for(let i=0;i<rawArticles.length;i+=BATCH){
-    const batch=rawArticles.slice(i,i+BATCH);
-    const startId=i+1;
-    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Full article:\n'+a.body.slice(0,1500) : 'Snippet: (no content)'}`).join('\n\n---\n\n');
-    const prompt=`You are a fun kids science writer for a magazine. Using the full article content below as your source material, write completely original articles in your own voice. Do NOT credit any source or publication.
+  // only rewrite first 24 fresh articles per refresh — pool grows over time
+  const toRewrite = rawArticles.slice(0, 24);
+  console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
+  const BATCH=3; const results=[];
 
-STORIES:
+  for(let i=0;i<toRewrite.length;i+=BATCH){
+    const batch=toRewrite.slice(i,i+BATCH);
+    const startId=i+1;
+    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Content:\n'+a.body.slice(0,1200) : 'No content'}`).join('\n\n---\n\n');
+    const prompt=`You are a fun kids science writer. Write original kid-friendly articles based on the stories below. Do NOT credit any source.
+
 ${articleList}
 
-Return ONLY a valid JSON array, no markdown.
-Each object: { "id": <number>, "headline": "catchy original title max 10 words", "category": "<robots|art|science|gaming|animals|space|cool>", "levels": {
-  "young":  { "summary": "2 simple sentences for age 7", "full": "Write 4-5 paragraphs (3-4 sentences each) for age 7. Use very simple words. Make it fun and exciting like a story. Use \\n\\n between every paragraph.", "wow": "one specific surprising fact, max 10 words" },
-  "middle": { "summary": "2-3 sentences for age 10", "full": "Write 6-7 paragraphs (4-5 sentences each) for age 10. Include what happened, why it matters, how it works, who did it, and what comes next. Use \\n\\n between every paragraph.", "wow": "one specific interesting fact, max 14 words" },
-  "older":  { "summary": "3 sentences for age 13", "full": "Write 8-10 paragraphs (4-6 sentences each) for age 13. Include background context, what happened, the technical details, expert reactions, real world impact, and future implications. Use \\n\\n between every paragraph.", "wow": "one specific insightful fact, max 18 words" }
-} }
+Return ONLY a valid JSON array (no markdown, no extra text).
+Each object must have exactly:
+{
+  "id": <number>,
+  "headline": "fun title max 10 words",
+  "category": "robots|art|science|gaming|animals|space|cool",
+  "levels": {
+    "young":  { "summary": "2 simple sentences age 7", "full": "3 paragraphs age 7, separated by \\n\\n", "wow": "surprising fact max 10 words" },
+    "middle": { "summary": "2-3 sentences age 10",    "full": "5 paragraphs age 10, separated by \\n\\n", "wow": "interesting fact max 14 words" },
+    "older":  { "summary": "3 sentences age 13",      "full": "7 paragraphs age 13, separated by \\n\\n", "wow": "insightful fact max 18 words" }
+  }
+}
+Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, never generic AI phrases.`;
 
-CRITICAL:
-- "full" must be LONG — aim for roughly 400-600 words, like a full magazine article
-- MUST have multiple paragraphs separated by \\n\\n — never one big block of text
-- Give each paragraph its own focus: intro, background, what happened, how it works, why it matters, what's next
-- Every wow must be SPECIFIC — a real number, name, or detail from the story
-- NEVER use "big deal for AI", "AI is amazing", "this could change AI"
-- Base everything on the actual article content provided
-- Stay accurate, positive, age-appropriate`;
-    try {
-      const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:8000, messages:[{role:'user',content:prompt}] });
-      let text=(msg.content||[]).map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
-      const s=text.indexOf('['),e=text.lastIndexOf(']');
-      if(s===-1||e===-1) throw new Error('No JSON');
-      const rw=JSON.parse(text.slice(s,e+1));
-      for(const r of rw){
-        const raw=rawArticles[r.id-1]; if(!raw) continue;
-        results.push({ id:r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.summary), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
+    for(let attempt=0; attempt<3; attempt++){
+      try {
+        const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:6000, messages:[{role:'user',content:prompt}] });
+        let text=(msg.content||[]).map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
+        const s=text.indexOf('['),e=text.lastIndexOf(']');
+        if(s===-1||e===-1) throw new Error('No JSON array');
+        const rw=JSON.parse(text.slice(s,e+1));
+        for(const r of rw){
+          const raw=toRewrite[r.id-1]; if(!raw) continue;
+          results.push({ id: Date.now()+r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.body||''), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
+        }
+        console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
+        break; // success
+      } catch(err) {
+        console.warn(`   ⚠ Batch ${Math.floor(i/BATCH)+1} attempt ${attempt+1} failed: ${err.message}`);
+        if(attempt===2){
+          // final fallback
+          for(const a of batch){
+            results.push({ id:Date.now()+Math.random(), headline:a.title, category:detectCategory(a.title,a.body||''), source:a.source, link:a.link, pubDate:a.pubDate,
+              levels:{ young:{summary:a.title,full:a.body?.slice(0,400)||a.title,wow:'Scientists made a cool discovery!'}, middle:{summary:a.title,full:a.body?.slice(0,600)||a.title,wow:'Researchers worked hard on this project.'}, older:{summary:a.title,full:a.body?.slice(0,800)||a.title,wow:'This represents a significant technical achievement.'} }
+            });
+          }
+        }
+        await new Promise(r=>setTimeout(r,2000)); // wait 2s before retry
       }
-    } catch(err) {
-      console.warn(`⚠ Batch failed: ${err.message}`);
-      for(const a of batch) results.push({ id:startId+batch.indexOf(a), headline:a.title, category:detectCategory(a.title,a.summary), source:a.source, link:a.link, pubDate:a.pubDate,
-        levels:{ young:{summary:a.summary.slice(0,150)||a.title, full:a.summary||a.title, wow:'Scientists worked really hard to build this.'}, middle:{summary:a.summary.slice(0,250)||a.title, full:a.summary||a.title, wow:'Researchers spent months testing before releasing it.'}, older:{summary:a.summary.slice(0,400)||a.title, full:a.summary||a.title, wow:'The team ran thousands of experiments to get here.'} } });
     }
   }
-  console.log(`   → ${results.length} articles ready`);
+  console.log(`   → ${results.length} articles rewritten`);
   return results;
 }
 
@@ -259,14 +271,18 @@ async function refreshNews() {
       CATS.forEach(c => { if(byCategory[c][i]) final.push(byCategory[c][i]); });
     }
 
-    cache.articles    = final;
+    // merge with existing cache — keep old articles, add new ones at top
+    const existingIds = new Set((cache.articles||[]).map(a=>a.id||a.headline));
+    const brandNew = final.filter(a => !existingIds.has(a.id||a.headline));
+    const merged = [...brandNew, ...(cache.articles||[])].slice(0, 500); // keep up to 500 articles
+
+    cache.articles    = merged;
     cache.lastUpdated = new Date();
-    // persist to disk so articles survive restarts
     try {
-      fs.writeFileSync(CACHE_FILE, JSON.stringify({ articles: final, lastUpdated: cache.lastUpdated }));
+      fs.writeFileSync(CACHE_FILE, JSON.stringify({ articles: merged, lastUpdated: cache.lastUpdated }));
       console.log(`💾 Cache saved to disk`);
     } catch(e) { console.warn('⚠ Could not save cache:', e.message); }
-    console.log(`✅ ${final.length} articles cached (${CATS.map(c=>`${c}:${byCategory[c].length}`).join(', ')})\n`);
+    console.log(`✅ ${merged.length} total articles (${brandNew.length} new)\n`);
   }catch(e){console.error('❌ Refresh error:',e.message);}
   finally{cache.isRefreshing=false;}
 }
@@ -435,7 +451,8 @@ app.post('/api/stripe/webhook', (req, res) => {
 app.get('/api/news', (req, res) => {
   const level    = ['young','middle','older'].includes(req.query.level) ? req.query.level : 'middle';
   const category = req.query.category || 'all';
-  const preview  = req.query.preview === 'true';
+  const page     = Math.max(1, parseInt(req.query.page || '1'));
+  const pageSize = 12;
 
   // auth check
   let subscribed = false;
@@ -447,16 +464,16 @@ app.get('/api/news', (req, res) => {
 
   let articles = cache.articles;
 
-  // build free set: 6 per category guaranteed
+  // build free set: 3 per category
   const CATS = ['robots','art','science','gaming','animals','space','cool'];
   let freeArticles = [];
   if(!subscribed){
     const byCat = {};
     CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,3));
-    freeArticles = CATS.flatMap(c => byCat[c]); // up to 21 free articles (3 × 7 cats)
+    freeArticles = CATS.flatMap(c => byCat[c]);
   }
 
-  // filter by category for display
+  // filter by category
   if(category !== 'all'){
     articles = articles.filter(a=>a.category===category);
     if(!subscribed) freeArticles = freeArticles.filter(a=>a.category===category);
@@ -464,8 +481,14 @@ app.get('/api/news', (req, res) => {
 
   const freeIds = new Set(freeArticles.map(a=>a.id));
   const lockedArticles = subscribed ? [] : articles.filter(a=>!freeIds.has(a.id));
-  const sliced = subscribed ? articles.slice(0,84) : freeArticles;
-  const hasMore = !subscribed && lockedArticles.length > 0;
+  const allSorted = subscribed ? articles : freeArticles;
+
+  // paginate
+  const start     = (page - 1) * pageSize;
+  const sliced    = allSorted.slice(start, start + pageSize);
+  const hasMore   = subscribed
+    ? start + pageSize < articles.length
+    : false; // free users always see all their free articles on page 1
 
   const shaped = sliced.map(a => ({
     id:       a.id,
@@ -478,7 +501,8 @@ app.get('/api/news', (req, res) => {
     locked:   false,
   }));
 
-  const lockedShaped = lockedArticles.map(a => ({
+  // locked previews only on first page
+  const lockedShaped = page === 1 ? lockedArticles.map(a => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
@@ -487,9 +511,9 @@ app.get('/api/news', (req, res) => {
     full:     '',
     wow:      '',
     locked:   true,
-  }));
+  })) : [];
 
-  res.json({ ok:true, count:shaped.length, total:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, hasMore, articles:[...shaped, ...lockedShaped] });
+  res.json({ ok:true, count:shaped.length, total:cache.articles.length, page, hasMore, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, articles:[...shaped, ...lockedShaped] });
 });
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
