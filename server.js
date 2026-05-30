@@ -197,7 +197,7 @@ async function rewriteForKids(rawArticles) {
     const batch=toRewrite.slice(i,i+BATCH);
     const startId=i+1;
     const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Content:\n'+a.body.slice(0,1200) : 'No content'}`).join('\n\n---\n\n');
-    const prompt=`You are a fun kids science writer. Write original kid-friendly articles based on the stories below. Do NOT credit any source.
+    const prompt=`You are a fun kids science writer for a magazine. Write completely original kid-friendly articles based on the stories below. Do NOT credit any source.
 
 ${articleList}
 
@@ -208,12 +208,12 @@ Each object must have exactly:
   "headline": "fun title max 10 words",
   "category": "robots|art|science|gaming|animals|space|cool",
   "levels": {
-    "young":  { "summary": "2 simple sentences age 7", "full": "3 paragraphs age 7, separated by \\n\\n", "wow": "surprising fact max 10 words" },
-    "middle": { "summary": "2-3 sentences age 10",    "full": "5 paragraphs age 10, separated by \\n\\n", "wow": "interesting fact max 14 words" },
-    "older":  { "summary": "3 sentences age 13",      "full": "7 paragraphs age 13, separated by \\n\\n", "wow": "insightful fact max 18 words" }
+    "young":  { "summary": "2 simple sentences age 7", "full": "5 paragraphs for age 7, each 3-4 sentences. Use very simple fun words. Separate every paragraph with \\n\\n", "wow": "surprising fact max 10 words" },
+    "middle": { "summary": "2-3 sentences age 10",    "full": "7 paragraphs for age 10, each 4-5 sentences. Include what happened, why it matters, how it works, who did it, cool details, and what comes next. Separate every paragraph with \\n\\n", "wow": "interesting fact max 14 words" },
+    "older":  { "summary": "3 sentences age 13",      "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
   }
 }
-Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, never generic AI phrases.`;
+Rules: paragraphs MUST be separated by \\n\\n, wow must be specific to THIS story, never say "big deal for AI" or "AI is amazing".`;
 
     for(let attempt=0; attempt<3; attempt++){
       try {
