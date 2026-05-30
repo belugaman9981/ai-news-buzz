@@ -8,6 +8,7 @@ const cron        = require('node-cron');
 const RSSParser   = require('rss-parser');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Stripe      = require('stripe');
+const { Resend }  = require('resend');
 const bcrypt      = require('bcryptjs');
 const jwt         = require('jsonwebtoken');
 const path        = require('path');
@@ -32,6 +33,8 @@ if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not se
 const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }) : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const FROM   = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 const parser = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 const axios  = require('axios');
 
@@ -39,40 +42,24 @@ const axios  = require('axios');
    SOURCES  — HN Algolia + RSS fallbacks
 ═══════════════════════════════════════════════ */
 const RSS_FEEDS = [
-  // AI / Tech
-  { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'          },
-  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'            },
-  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'           },
-  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',           source: 'Ars Technica'         },
-  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                       source: 'Wired'                },
-  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum'        },
-  { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'              },
-  { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review'        },
-  // Yahoo News
-  { url: 'https://news.yahoo.com/rss/',                                        source: 'Yahoo News'           },
-  { url: 'https://news.yahoo.com/rss/science',                                 source: 'Yahoo Science'        },
-  { url: 'https://news.yahoo.com/rss/technology',                              source: 'Yahoo Tech'           },
+  { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'   },
+  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'     },
+  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'    },
+  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',           source: 'Ars Technica'  },
+  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                       source: 'Wired'         },
+  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum' },
+  { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'       },
+  { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review' },
   // gaming
-  { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'             },
-  { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'               },
-  { url: 'https://feeds.ign.com/ign/all',                                      source: 'IGN'                  },
-  { url: 'https://www.polygon.com/rss/index.xml',                              source: 'Polygon'              },
-  { url: 'https://www.pcgamer.com/rss/',                                       source: 'PC Gamer'             },
-  { url: 'https://www.eurogamer.net/feed',                                     source: 'Eurogamer'            },
-  { url: 'https://www.rockpapershotgun.com/feed',                              source: 'Rock Paper Shotgun'   },
+  { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'      },
+  { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'        },
   // space
-  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'                 },
-  { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'            },
-  { url: 'https://spaceflightnow.com/feed/',                                   source: 'Spaceflight Now'      },
-  { url: 'https://www.universetoday.com/feed/',                                source: 'Universe Today'       },
-  { url: 'https://www.esa.int/rssfeed/Our_Activities/Space_Science',           source: 'ESA'                  },
+  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'          },
+  { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'     },
   // animals / nature
-  { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'              },
-  { url: 'https://www.sciencedaily.com/rss/plants_animals.xml',                source: 'ScienceDaily Animals' },
-  { url: 'https://phys.org/rss-feed/biology-news/',                            source: 'Phys.org Biology'     },
-  { url: 'https://www.livescience.com/feeds/all',                              source: 'LiveScience'          },
+  { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'       },
   // art / creative
-  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq'        },
+  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq' },
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -89,20 +76,6 @@ function detectCategory(title, summary) {
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS))
     if (kws.some(kw => text.includes(kw))) return cat;
   return 'cool';
-}
-
-/* detect thin paywalled scrape results so we fall back to the RSS snippet */
-const PAYWALL_PHRASES = [
-  'subscribe to read','subscription required','subscriber only','subscriber-only',
-  'sign in to read','create a free account','this story is for subscribers',
-  'become a member','members only','premium content','you have reached your limit',
-  'register to read','unlock this article','continue reading with a subscription',
-  'to continue reading','read the full article','this content is for subscribers',
-];
-function isPaywalled(text) {
-  if (!text || text.length > 800) return false; // long bodies are real content
-  const t = text.toLowerCase();
-  return PAYWALL_PHRASES.some(p => t.includes(p));
 }
 
 /* ═══════════════════════════════════════════════
@@ -143,17 +116,16 @@ async function fetchArticleBody(url) {
 async function fetchHNStories() {
   try {
     const queries = [
-      'artificial intelligence', 'machine learning openai',
-      'AI gaming video games', 'gaming esports nintendo xbox playstation',
-      'wildlife animals nature conservation endangered',
-      'space NASA rocket Mars moon astronaut',
-      'robotics automation drone', 'AI art image generation',
-      'AI medical health science', 'deepmind anthropic nvidia chip',
+      'artificial intelligence', 'machine learning', 'openai GPT',
+      'robotics automation', 'AI gaming video games',
+      'AI animals wildlife nature', 'space NASA rocket',
+      'AI art image generation', 'AI medical health',
+      'deepmind anthropic nvidia', 'AI science discovery'
     ];
-    // fetch ALL queries in parallel for broad coverage
+    // fetch multiple queries in parallel
     const results = await Promise.all(
-      queries.map(q =>
-        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>10`, { timeout: 5000 })
+      queries.slice(0,7).map(q =>
+        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>20`, { timeout: 5000 })
           .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
           .catch(()=>[])
       )
@@ -166,7 +138,7 @@ async function fetchHNStories() {
 async function scrapeFeed(feed) {
   try {
     const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0, 15).map(i => ({
+    return (r.items || []).slice(0, 10).map(i => ({
       title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
       link:    i.link || '',
       pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
@@ -196,7 +168,7 @@ async function scrapeAllFeeds() {
     if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
   dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 180); // grab top 180 to ensure coverage across all categories
+  const top = dedup.slice(0, 100); // grab top 100 to ensure 12 per category
   console.log(`   → ${top.length} stories found`);
 
   // fetch all bodies in parallel
@@ -205,21 +177,19 @@ async function scrapeAllFeeds() {
     top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
   );
 
-  const withContent = top.map((a, i) => {
-    const rawBody = bodies[i] || '';
-    // if scraped body looks like a paywall page, fall back to the RSS snippet
-    const body = isPaywalled(rawBody) ? (a.snippet || '') : (rawBody || a.snippet || '');
-    return { ...a, body };
-  }).filter(a => (a.body?.length > 50) || a.title?.length > 20);
+  const withContent = top.map((a, i) => ({
+    ...a,
+    body: bodies[i] || a.snippet || '',
+  })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
 
   console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 140);
+  return withContent.slice(0, 84);
 }
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  // rewrite up to 49 fresh articles per refresh — pool grows over time
-  const toRewrite = rawArticles.slice(0, 49);
+  // only rewrite first 24 fresh articles per refresh — pool grows over time
+  const toRewrite = rawArticles.slice(0, 24);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
   const BATCH=3; const results=[];
 
@@ -243,7 +213,7 @@ Each object must have exactly:
     "older":  { "summary": "3 sentences age 13",      "full": "7 paragraphs age 13, separated by \\n\\n", "wow": "insightful fact max 18 words" }
   }
 }
-Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, never generic AI phrases. Never mention subscriptions, memberships, paywalls, signing in, or creating accounts — all content is freely written for kids.`;
+Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, never generic AI phrases.`;
 
     for(let attempt=0; attempt<3; attempt++){
       try {
@@ -314,18 +284,7 @@ async function refreshNews() {
     // merge with existing cache — keep old articles, add new ones at top
     const existingIds = new Set((cache.articles||[]).map(a=>a.id||a.headline));
     const brandNew = final.filter(a => !existingIds.has(a.id||a.headline));
-
-    // expire old articles: 3 days for most, 4 days for sparse categories
-    const SPARSE_CATS = ['gaming','animals','space'];
-    const now = Date.now();
-    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-    const FOUR_DAYS_MS  = 4 * 24 * 60 * 60 * 1000;
-    const retained = (cache.articles||[]).filter(a => {
-      const age = now - new Date(a.pubDate).getTime();
-      return SPARSE_CATS.includes(a.category) ? age < FOUR_DAYS_MS : age < THREE_DAYS_MS;
-    });
-    // pool grows over time — newest first, old ones expire naturally
-    const merged = [...brandNew, ...retained.filter(a => !existingIds.has(a.id||a.headline))].slice(0, 2500);
+    const merged = [...brandNew, ...(cache.articles||[])].slice(0, 500); // keep up to 500 articles
 
     cache.articles    = merged;
     cache.lastUpdated = new Date();
@@ -357,6 +316,84 @@ function isSubscribed(userId) {
   const user = db.get('users').find({ id: userId }).value();
   if (!user) return false;
   return user.subscriptionStatus === 'active';
+}
+
+/* ═══════════════════════════════════════════════
+   EMAIL HELPERS
+═══════════════════════════════════════════════ */
+async function sendWelcomeEmail(email) {
+  if (!resend) return;
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: email,
+      subject: '🚀 Welcome to Kids AI Buzz!',
+      html: `
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:2rem">
+          <h1 style="color:#7C6FF7;font-size:28px">Welcome to Kids AI Buzz! ✨</h1>
+          <p style="font-size:16px;color:#444;line-height:1.6">
+            Hey there! Thanks for signing up. Every week we'll send you the <strong>top 5 AI stories</strong> 
+            explained in a fun way that kids actually understand.
+          </p>
+          <p style="font-size:16px;color:#444;line-height:1.6">
+            AI is changing the world — and we think every kid should know about it! 🤖🎨🚀
+          </p>
+          <a href="https://ai-news-buzz.onrender.com" 
+             style="display:inline-block;background:#7C6FF7;color:#fff;padding:12px 28px;border-radius:99px;text-decoration:none;font-weight:bold;font-size:16px;margin-top:1rem">
+            Read today's stories →
+          </a>
+          <p style="font-size:13px;color:#999;margin-top:2rem">
+            You're receiving this because you signed up at Kids AI Buzz. 
+            <a href="https://ai-news-buzz.onrender.com/unsubscribe?email=${encodeURIComponent(email)}" style="color:#999">Unsubscribe</a>
+          </p>
+        </div>`
+    });
+    console.log(`📧 Welcome email sent to ${email}`);
+  } catch(e) { console.warn('⚠ Welcome email failed:', e.message); }
+}
+
+async function sendWeeklyDigest() {
+  if (!resend) return;
+  const subscribers = db.get('newsletter').value() || [];
+  if (!subscribers.length) return;
+
+  const top5 = cache.articles
+    .filter(a => a.levels?.middle?.summary)
+    .slice(0, 5);
+  if (!top5.length) return;
+
+  const articlesHtml = top5.map((a, i) => `
+    <div style="margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid #eee">
+      <div style="font-size:12px;font-weight:bold;color:#7C6FF7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">
+        ${a.category}
+      </div>
+      <h3 style="margin:0 0 8px;color:#1A1035;font-size:18px">${a.headline}</h3>
+      <p style="margin:0;color:#666;font-size:14px;line-height:1.6">${a.levels.middle.summary}</p>
+    </div>`).join('');
+
+  for (const sub of subscribers) {
+    try {
+      await resend.emails.send({
+        from: FROM,
+        to: sub.email,
+        subject: `🤖 This week in AI — Kids AI Buzz`,
+        html: `
+          <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:2rem">
+            <h1 style="color:#7C6FF7;font-size:24px">This week in AI ✨</h1>
+            <p style="color:#666;font-size:14px;margin-bottom:2rem">Here are the top 5 AI stories this week, explained just for you!</p>
+            ${articlesHtml}
+            <a href="https://ai-news-buzz.onrender.com"
+               style="display:inline-block;background:#7C6FF7;color:#fff;padding:12px 28px;border-radius:99px;text-decoration:none;font-weight:bold;font-size:16px;margin-top:1rem">
+              Read all stories →
+            </a>
+            <p style="font-size:13px;color:#999;margin-top:2rem">
+              <a href="https://ai-news-buzz.onrender.com/unsubscribe?email=${encodeURIComponent(sub.email)}" style="color:#999">Unsubscribe</a>
+            </p>
+          </div>`
+      });
+    } catch(e) { console.warn(`⚠ Digest failed for ${sub.email}:`, e.message); }
+  }
+  console.log(`📧 Weekly digest sent to ${subscribers.length} subscribers`);
 }
 
 /* ═══════════════════════════════════════════════
@@ -423,7 +460,7 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const PROMO_COUPON_ID = process.env.STRIPE_PROMO_COUPON_ID;
   const promoRequested = req.body?.usePromo === true;
-  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-30T00:00:00Z');
+  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
   if (!PRICE_ID) return res.status(500).json({ error: 'Stripe price ID not configured' });
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -515,17 +552,12 @@ app.get('/api/news', (req, res) => {
 
   let articles = cache.articles;
 
-  // free set: 1/3 of each category, minimum 2 per category
+  // build free set: 3 per category
   const CATS = ['robots','art','science','gaming','animals','space','cool'];
   let freeArticles = [];
   if(!subscribed){
     const byCat = {};
-    CATS.forEach(c => {
-      const catArts = cache.articles.filter(a=>a.category===c);
-      // at least 2 free, else 1/3 rounded up — taken from the freshest articles
-      const freeCount = Math.max(2, Math.ceil(catArts.length / 3));
-      byCat[c] = catArts.slice(0, freeCount);
-    });
+    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,3));
     freeArticles = CATS.flatMap(c => byCat[c]);
   }
 
@@ -574,56 +606,8 @@ app.get('/api/news', (req, res) => {
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
 app.get('/api/promo', (req, res) => {
-  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-30T00:00:00Z');
-  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-30' });
-});
-
-/* ─── SEARCH API ──────────────────────────────── */
-app.get('/api/search', (req, res) => {
-  const level = ['young','middle','older'].includes(req.query.level) ? req.query.level : 'middle';
-  const q = (req.query.q || '').trim().slice(0, 100);
-  if (!q || q.length < 2) return res.json({ ok: true, count: 0, articles: [] });
-
-  let subscribed = false;
-  const header = req.headers.authorization || '';
-  const tkn = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (tkn) {
-    try { const decoded = jwt.verify(tkn, JWT_SECRET); subscribed = isSubscribed(decoded.id); } catch {}
-  }
-
-  const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1);
-
-  // determine free articles (same 1/3 rule as /api/news)
-  const CATS = ['robots','art','science','gaming','animals','space','cool'];
-  const freeIds = new Set();
-  if (!subscribed) {
-    CATS.forEach(c => {
-      const catArts = cache.articles.filter(a => a.category === c);
-      const freeCount = Math.max(2, Math.ceil(catArts.length / 3));
-      catArts.slice(0, freeCount).forEach(a => freeIds.add(a.id));
-    });
-  }
-
-  const matches = cache.articles.filter(a => {
-    const text = ((a.headline || '') + ' ' + (a.levels?.[level]?.summary || '') + ' ' + (a.category || '')).toLowerCase();
-    return words.every(w => text.includes(w));
-  }).slice(0, 60);
-
-  const articles = matches.map(a => {
-    const isFree = subscribed || freeIds.has(a.id);
-    return {
-      id:       a.id,
-      headline: a.headline,
-      category: a.category,
-      pubDate:  a.pubDate,
-      summary:  isFree ? (a.levels?.[level]?.summary || '') : (a.levels?.[level]?.summary || '').split('.')[0] + '...',
-      full:     isFree ? (a.levels?.[level]?.full    || '') : '',
-      wow:      isFree ? (a.levels?.[level]?.wow     || '') : '',
-      locked:   !isFree,
-    };
-  });
-
-  res.json({ ok: true, count: articles.length, articles });
+  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
 });
 
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
@@ -631,6 +615,36 @@ app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.artic
 app.post('/api/admin/refresh', (req,res) => {
   if((req.headers['x-admin-secret']||req.body?.secret)!==ADMIN_SECRET) return res.status(403).json({error:'Forbidden'});
   res.json({ok:true,message:'Refresh started.'}); refreshNews();
+});
+
+/* ── POST /api/newsletter/subscribe ── */
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
+
+  const existing = db.get('newsletter').find({ email: email.toLowerCase() }).value();
+  if (existing) return res.json({ ok: true, message: 'Already subscribed!' });
+
+  db.get('newsletter').push({ email: email.toLowerCase(), createdAt: new Date().toISOString() }).write();
+  await sendWelcomeEmail(email.toLowerCase());
+  res.json({ ok: true, message: 'Subscribed! Check your inbox.' });
+});
+
+/* ── GET /api/newsletter/unsubscribe ── */
+app.get('/unsubscribe', (req, res) => {
+  const email = req.query.email;
+  if (email) {
+    db.get('newsletter').remove({ email: email.toLowerCase() }).write();
+    console.log(`📧 Unsubscribed: ${email}`);
+  }
+  res.send('<html><body style="font-family:sans-serif;text-align:center;padding:4rem"><h2>You\'ve been unsubscribed.</h2><p><a href="/">Back to Kids AI Buzz</a></p></body></html>');
+});
+
+/* ── POST /api/admin/digest ── (manual trigger) */
+app.post('/api/admin/digest', async (req, res) => {
+  if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ ok: true, message: 'Digest sending...' });
+  sendWeeklyDigest();
 });
 
 app.get('*', (_,res) => res.sendFile(path.join(__dirname,'public','index.html')));
@@ -654,4 +668,5 @@ app.listen(PORT, async () => {
   }
 
   cron.schedule(REFRESH_CRON, () => { console.log('[cron] Refresh'); refreshNews(); });
+  cron.schedule('0 9 * * 1', () => { console.log('[cron] Weekly digest'); sendWeeklyDigest(); });
 });
