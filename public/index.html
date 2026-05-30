@@ -755,7 +755,7 @@ function renderCards(){
   }
 
   const free   = list.filter(a=>!a.locked);
-  const locked = list.filter(a=>a.locked);
+  const locked = list.filter(a=>a.locked).slice(0, 6); // max 6 locked teasers
   const lbl = searchQuery
     ? `🔍 "${searchQuery}" — ${free.length} results`
     : activeCat==='all'
