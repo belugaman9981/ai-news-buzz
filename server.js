@@ -39,24 +39,40 @@ const axios  = require('axios');
    SOURCES  — HN Algolia + RSS fallbacks
 ═══════════════════════════════════════════════ */
 const RSS_FEEDS = [
-  { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'   },
-  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'     },
-  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'    },
-  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',           source: 'Ars Technica'  },
-  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                       source: 'Wired'         },
-  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum' },
-  { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'       },
-  { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review' },
+  // AI / Tech
+  { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'          },
+  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'            },
+  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'           },
+  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',           source: 'Ars Technica'         },
+  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                       source: 'Wired'                },
+  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum'        },
+  { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'              },
+  { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review'        },
+  // Yahoo News
+  { url: 'https://news.yahoo.com/rss/',                                        source: 'Yahoo News'           },
+  { url: 'https://news.yahoo.com/rss/science',                                 source: 'Yahoo Science'        },
+  { url: 'https://news.yahoo.com/rss/technology',                              source: 'Yahoo Tech'           },
   // gaming
-  { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'      },
-  { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'        },
+  { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'             },
+  { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'               },
+  { url: 'https://feeds.ign.com/ign/all',                                      source: 'IGN'                  },
+  { url: 'https://www.polygon.com/rss/index.xml',                              source: 'Polygon'              },
+  { url: 'https://www.pcgamer.com/rss/',                                       source: 'PC Gamer'             },
+  { url: 'https://www.eurogamer.net/feed',                                     source: 'Eurogamer'            },
+  { url: 'https://www.rockpapershotgun.com/feed',                              source: 'Rock Paper Shotgun'   },
   // space
-  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'          },
-  { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'     },
+  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'                 },
+  { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'            },
+  { url: 'https://spaceflightnow.com/feed/',                                   source: 'Spaceflight Now'      },
+  { url: 'https://www.universetoday.com/feed/',                                source: 'Universe Today'       },
+  { url: 'https://www.esa.int/rssfeed/Our_Activities/Space_Science',           source: 'ESA'                  },
   // animals / nature
-  { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'       },
+  { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'              },
+  { url: 'https://www.sciencedaily.com/rss/plants_animals.xml',                source: 'ScienceDaily Animals' },
+  { url: 'https://phys.org/rss-feed/biology-news/',                            source: 'Phys.org Biology'     },
+  { url: 'https://www.livescience.com/feeds/all',                              source: 'LiveScience'          },
   // art / creative
-  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq' },
+  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq'        },
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -73,6 +89,20 @@ function detectCategory(title, summary) {
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS))
     if (kws.some(kw => text.includes(kw))) return cat;
   return 'cool';
+}
+
+/* detect thin paywalled scrape results so we fall back to the RSS snippet */
+const PAYWALL_PHRASES = [
+  'subscribe to read','subscription required','subscriber only','subscriber-only',
+  'sign in to read','create a free account','this story is for subscribers',
+  'become a member','members only','premium content','you have reached your limit',
+  'register to read','unlock this article','continue reading with a subscription',
+  'to continue reading','read the full article','this content is for subscribers',
+];
+function isPaywalled(text) {
+  if (!text || text.length > 800) return false; // long bodies are real content
+  const t = text.toLowerCase();
+  return PAYWALL_PHRASES.some(p => t.includes(p));
 }
 
 /* ═══════════════════════════════════════════════
@@ -113,16 +143,17 @@ async function fetchArticleBody(url) {
 async function fetchHNStories() {
   try {
     const queries = [
-      'artificial intelligence', 'machine learning', 'openai GPT',
-      'robotics automation', 'AI gaming video games',
-      'AI animals wildlife nature', 'space NASA rocket',
-      'AI art image generation', 'AI medical health',
-      'deepmind anthropic nvidia', 'AI science discovery'
+      'artificial intelligence', 'machine learning openai',
+      'AI gaming video games', 'gaming esports nintendo xbox playstation',
+      'wildlife animals nature conservation endangered',
+      'space NASA rocket Mars moon astronaut',
+      'robotics automation drone', 'AI art image generation',
+      'AI medical health science', 'deepmind anthropic nvidia chip',
     ];
-    // fetch multiple queries in parallel
+    // fetch ALL queries in parallel for broad coverage
     const results = await Promise.all(
-      queries.slice(0,7).map(q =>
-        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>20`, { timeout: 5000 })
+      queries.map(q =>
+        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>10`, { timeout: 5000 })
           .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
           .catch(()=>[])
       )
@@ -135,7 +166,7 @@ async function fetchHNStories() {
 async function scrapeFeed(feed) {
   try {
     const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0, 10).map(i => ({
+    return (r.items || []).slice(0, 15).map(i => ({
       title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
       link:    i.link || '',
       pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
@@ -165,7 +196,7 @@ async function scrapeAllFeeds() {
     if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
   dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 100); // grab top 100 to ensure 12 per category
+  const top = dedup.slice(0, 180); // grab top 180 to ensure coverage across all categories
   console.log(`   → ${top.length} stories found`);
 
   // fetch all bodies in parallel
@@ -174,19 +205,21 @@ async function scrapeAllFeeds() {
     top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
   );
 
-  const withContent = top.map((a, i) => ({
-    ...a,
-    body: bodies[i] || a.snippet || '',
-  })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
+  const withContent = top.map((a, i) => {
+    const rawBody = bodies[i] || '';
+    // if scraped body looks like a paywall page, fall back to the RSS snippet
+    const body = isPaywalled(rawBody) ? (a.snippet || '') : (rawBody || a.snippet || '');
+    return { ...a, body };
+  }).filter(a => (a.body?.length > 50) || a.title?.length > 20);
 
   console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 84);
+  return withContent.slice(0, 140);
 }
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  // only rewrite first 24 fresh articles per refresh — pool grows over time
-  const toRewrite = rawArticles.slice(0, 24);
+  // rewrite up to 49 fresh articles per refresh — pool grows over time
+  const toRewrite = rawArticles.slice(0, 49);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
   const BATCH=3; const results=[];
 
@@ -210,7 +243,7 @@ Each object must have exactly:
     "older":  { "summary": "3 sentences age 13",      "full": "7 paragraphs age 13, separated by \\n\\n", "wow": "insightful fact max 18 words" }
   }
 }
-Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, never generic AI phrases.`;
+Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, never generic AI phrases. Never mention subscriptions, memberships, paywalls, signing in, or creating accounts — all content is freely written for kids.`;
 
     for(let attempt=0; attempt<3; attempt++){
       try {
@@ -281,7 +314,18 @@ async function refreshNews() {
     // merge with existing cache — keep old articles, add new ones at top
     const existingIds = new Set((cache.articles||[]).map(a=>a.id||a.headline));
     const brandNew = final.filter(a => !existingIds.has(a.id||a.headline));
-    const merged = [...brandNew, ...(cache.articles||[])].slice(0, 500); // keep up to 500 articles
+
+    // expire old articles: 3 days for most, 4 days for sparse categories
+    const SPARSE_CATS = ['gaming','animals','space'];
+    const now = Date.now();
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+    const FOUR_DAYS_MS  = 4 * 24 * 60 * 60 * 1000;
+    const retained = (cache.articles||[]).filter(a => {
+      const age = now - new Date(a.pubDate).getTime();
+      return SPARSE_CATS.includes(a.category) ? age < FOUR_DAYS_MS : age < THREE_DAYS_MS;
+    });
+    // pool grows over time — newest first, old ones expire naturally
+    const merged = [...brandNew, ...retained.filter(a => !existingIds.has(a.id||a.headline))].slice(0, 2500);
 
     cache.articles    = merged;
     cache.lastUpdated = new Date();
@@ -379,7 +423,7 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const PROMO_COUPON_ID = process.env.STRIPE_PROMO_COUPON_ID;
   const promoRequested = req.body?.usePromo === true;
-  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
+  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-30T00:00:00Z');
   if (!PRICE_ID) return res.status(500).json({ error: 'Stripe price ID not configured' });
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -471,12 +515,17 @@ app.get('/api/news', (req, res) => {
 
   let articles = cache.articles;
 
-  // build free set: 3 per category
+  // free set: 1/3 of each category, minimum 2 per category
   const CATS = ['robots','art','science','gaming','animals','space','cool'];
   let freeArticles = [];
   if(!subscribed){
     const byCat = {};
-    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,3));
+    CATS.forEach(c => {
+      const catArts = cache.articles.filter(a=>a.category===c);
+      // at least 2 free, else 1/3 rounded up — taken from the freshest articles
+      const freeCount = Math.max(2, Math.ceil(catArts.length / 3));
+      byCat[c] = catArts.slice(0, freeCount);
+    });
     freeArticles = CATS.flatMap(c => byCat[c]);
   }
 
@@ -525,8 +574,8 @@ app.get('/api/news', (req, res) => {
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
 app.get('/api/promo', (req, res) => {
-  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
-  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
+  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-30T00:00:00Z');
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-30' });
 });
 
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
