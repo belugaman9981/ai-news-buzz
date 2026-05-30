@@ -442,6 +442,9 @@ body.dark .modal{background:var(--surface)}
       ${Array(6).fill(`<div class="sk-card"><div class="sk sk-i"></div><div class="sk sk-t"></div><div class="sk sk-l1"></div><div class="sk sk-l2"></div><div class="sk sk-w"></div></div>`).join('')}
     </div>
   </div>
+  <div style="text-align:center;margin-top:2rem">
+    <button id="loadMoreBtn" onclick="loadMore()" style="display:none;padding:12px 32px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:var(--purple);cursor:pointer;transition:all .15s">Load more stories ↓</button>
+  </div>
 </main>
 
 <!-- PAYWALL (shown to non-subscribers) -->
@@ -678,6 +681,7 @@ body.dark .modal{background:var(--surface)}
 /* ── state ── */
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
 let currentTab='login', token=localStorage.getItem('kab_token');
+let currentPage=1, isFetchingMore=false, hasMorePages=false;
 
 const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
 const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
@@ -710,13 +714,15 @@ function showUserArea(email,subscribed){
 document.getElementById('cats').addEventListener('click',e=>{
   const b=e.target.closest('.cat');if(!b)return;setCategory(b.dataset.cat);
 });
-function setCategory(cat,scroll=true){
+function setCategory(cat, scroll=true){
   activeCat=cat;
+  currentPage=1;
+  allArticles=[];
   document.querySelectorAll('.cat').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
-  renderCards();
+  loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;loadNews();}
+function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
@@ -775,18 +781,38 @@ function renderCards(){
     </div>`;
   };
 
-  document.getElementById('content').innerHTML=`<div class="grid">${[...free,...locked].map(makeCard).join('')}</div>`;
+  const grid = document.getElementById('content').querySelector('.grid');
+  const newCards = [...free,...locked].map(makeCard).join('');
+  if(currentPage > 1 && grid){
+    grid.insertAdjacentHTML('beforeend', newCards);
+  } else {
+    document.getElementById('content').innerHTML=`<div class="grid">${newCards}</div>`;
+  }
 }
 
 /* ── load news ── */
-async function loadNews(){
+async function loadNews(reset=true){
+  if(reset){
+    currentPage = 1;
+    allArticles = [];
+  }
   try{
-    const r=await fetch(`/api/news?level=${activeLevel}`,{headers:authHeader()});
+    const r=await fetch(`/api/news?level=${activeLevel}&page=${currentPage}`,{headers:authHeader()});
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
     const data=await r.json();
-    allArticles = data.articles || [];
+
+    const newArticles = data.articles || [];
+    if(reset){
+      allArticles = newArticles;
+    } else {
+      // append, avoid duplicates
+      const existingIds = new Set(allArticles.map(a=>a.id));
+      allArticles = [...allArticles, ...newArticles.filter(a=>!existingIds.has(a.id))];
+    }
     window._articles = allArticles;
     isSubscribed = data.subscribed;
+    hasMorePages = data.hasMore;
+
     populateMissing();
     if(!isSubscribed) document.getElementById('countdownSec').style.display='block';
 
@@ -800,15 +826,32 @@ async function loadNews(){
 
     // paywall
     const pw=document.getElementById('paywall');
-    if(data.hasMore&&!isSubscribed){
+    if(!isSubscribed && allArticles.some(a=>a.locked)){
       pw.style.display='block';
       document.getElementById('totalCount').textContent=data.total;
     } else { pw.style.display='none'; }
 
     renderCards();
+    updateLoadMoreBtn();
   }catch(err){
     document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">😬</span><h2>Can't reach server</h2><p>${esc(err.message)}</p><button class="retry" onclick="loadNews()">Try again</button></div>`;
   }
+}
+
+async function loadMore(){
+  if(isFetchingMore || !hasMorePages) return;
+  isFetchingMore = true;
+  currentPage++;
+  document.getElementById('loadMoreBtn').textContent = 'Loading...';
+  await loadNews(false);
+  isFetchingMore = false;
+}
+
+function updateLoadMoreBtn(){
+  const btn = document.getElementById('loadMoreBtn');
+  if(!btn) return;
+  btn.style.display = hasMorePages ? 'block' : 'none';
+  btn.textContent = 'Load more stories ↓';
 }
 
 /* ── subscribe ── */
@@ -967,10 +1010,10 @@ function toggleDark(){
 }
 if(localStorage.getItem('kab_dark')==='1'){
   document.body.classList.add('dark');
-  document.getElementById('darkBtn').textContent='☀️'; 
+  document.getElementById('darkBtn').textContent='☀️';
 }
 
-/* ── fun facts ticker ── */ 
+/* ── fun facts ticker ── */
 const FUN_FACTS = [
   '🤖 The word "robot" comes from a Czech word meaning "forced labour"',
   '🧠 GPT-4 was trained on roughly 1 trillion words of text',
@@ -1089,7 +1132,14 @@ startCountdown();
 initTicker();
 checkPromo();
 checkSession().then(loadNews);
-setInterval(loadNews,5*60*1000);
+setInterval(()=>loadNews(true), 5*60*1000);
+
+// infinite scroll — auto load more when Load More button is visible
+const _observer = new IntersectionObserver(entries => {
+  if(entries[0].isIntersecting && hasMorePages && !isFetchingMore) loadMore();
+}, { threshold: 0.1 });
+const _sentinel = document.getElementById('loadMoreBtn');
+if(_sentinel) _observer.observe(_sentinel);
 </script>
 </body>
 </html>
