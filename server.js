@@ -6,7 +6,7 @@ const helmet      = require('helmet');
 const rateLimit   = require('express-rate-limit');
 const cron        = require('node-cron');
 const RSSParser   = require('rss-parser');
-const Anthropic   = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Stripe      = require('stripe');
 const bcrypt      = require('bcryptjs');
 const jwt         = require('jsonwebtoken');
@@ -26,14 +26,14 @@ const JWT_SECRET    = process.env.JWT_SECRET    || 'change-this-jwt-secret';
 const APP_URL       = process.env.APP_URL       || `http://localhost:${PORT}`;
 const PRICE_ID      = process.env.STRIPE_PRICE_ID;
 
-if (!process.env.ANTHROPIC_API_KEY) { console.error('❌ ANTHROPIC_API_KEY missing'); process.exit(1); }
+if (!process.env.GEMINI_API_KEY)    { console.warn('⚠ GEMINI_API_KEY not set — rewriting disabled'); }
 if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not set — payments disabled'); }
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const stripe    = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const parser    = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
-
-const axios = require('axios');
+const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const parser = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
+const axios  = require('axios');
 
 /* ═══════════════════════════════════════════════
    SOURCES  — HN Algolia + RSS fallbacks
@@ -208,8 +208,9 @@ Rules: multiple paragraphs with \\n\\n, wow must be specific to THIS story, neve
 
     for(let attempt=0; attempt<3; attempt++){
       try {
-        const msg=await anthropic.messages.create({ model:'claude-sonnet-4-20250514', max_tokens:6000, messages:[{role:'user',content:prompt}] });
-        let text=(msg.content||[]).map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
+        if(!gemini) throw new Error('Gemini not configured');
+        const result = await gemini.generateContent(prompt);
+        let text = result.response.text().replace(/```json|```/g,'').trim();
         const s=text.indexOf('['),e=text.lastIndexOf(']');
         if(s===-1||e===-1) throw new Error('No JSON array');
         const rw=JSON.parse(text.slice(s,e+1));
