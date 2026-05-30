@@ -363,8 +363,8 @@ body.dark .modal{background:var(--surface)}
   <button onclick="document.getElementById('promoBanner').style.display='none'" style="position:absolute;top:50%;right:1rem;transform:translateY(-50%);background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
   <div class="promo-banner-inner">
     <div class="promo-banner-title">🔥 LIMITED TIME OFFER — SUBSCRIBE FOR JUST $1.99/MONTH!</div>
-    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 30th and lock it in forever.</div>
-    <div class="promo-banner-countdown">⏰ Offer ends June 30th, 2026</div><br>
+    <div class="promo-banner-sub">That's nearly half price! Subscribe before June 1st and lock it in forever.</div>
+    <div class="promo-banner-countdown">⏰ Offer ends June 1st, 2026</div><br>
     <a href="#" onclick="document.getElementById('promoBox').scrollIntoView({behavior:'smooth'});return false">Enter promo code to get the deal →</a>
   </div>
 </div>
@@ -454,7 +454,7 @@ body.dark .modal{background:var(--surface)}
     <h2>Unlock all stories!</h2>
     <p>You're seeing 3 of <span id="totalCount">84</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
     <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
-    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 30th! Regular price $3.99/mo</div>
+    <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
     <div class="perks">
       <span class="perk">✅ 7-day free trial</span>
       <span class="perk">✅ All 63 articles</span>
@@ -486,7 +486,7 @@ body.dark .modal{background:var(--surface)}
     <button class="section-close" onclick="document.getElementById('countdownSec').style.display='none'">✕</button>
     <div class="countdown-badge">⏰ LIMITED TIME OFFER</div>
     <h2>Subscribe for <span id="cdPrice">$1.99</span> your first month!</h2>
-    <p>We have a special limited time offer — subscribe before June 30th at half price. This offer expires in:</p>
+    <p>We have a special limited time offer — subscribe before June 1st at half price. This offer expires in:</p>
     <div class="countdown-boxes">
       <div class="cd-box"><span id="cdDays">0</span><label>Days</label></div>
       <div class="cd-sep">:</div>
@@ -574,6 +574,23 @@ body.dark .modal{background:var(--surface)}
 <div class="facts-bar" id="factsBar">
   <div class="facts-track" id="factsTrack"></div>
 </div>
+
+<!-- NEWSLETTER -->
+<section style="position:relative;z-index:1;background:var(--purple);color:#fff;padding:3.5rem 2rem;text-align:center">
+  <div style="max-width:520px;margin:0 auto">
+    <h2 style="font-family:'Lilita One',sans-serif;font-size:28px;margin-bottom:.5rem">📬 Get the weekly digest!</h2>
+    <p style="font-size:15px;opacity:.85;margin-bottom:1.5rem;font-weight:600">Top 5 AI stories every Monday — totally free, no spam ever!</p>
+    <div id="nlForm" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <input id="nlEmail" type="email" placeholder="your@email.com"
+        style="padding:11px 20px;border-radius:99px;border:none;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;width:280px;outline:none;color:#1A1035">
+      <button onclick="nlSignup()"
+        style="padding:11px 26px;border-radius:99px;border:none;background:var(--amber);color:var(--text);font-family:'Lilita One',sans-serif;font-size:17px;cursor:pointer">
+        Subscribe!
+      </button>
+    </div>
+    <p id="nlOk" style="font-size:15px;font-weight:800;display:none">🎉 You're in! Check your inbox for a welcome email!</p>
+  </div>
+</section>
 
 <!-- TOPIC SUGGESTIONS -->
 <section class="suggest-section">
@@ -682,8 +699,6 @@ body.dark .modal{background:var(--surface)}
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
 let currentTab='login', token=localStorage.getItem('kab_token');
 let currentPage=1, isFetchingMore=false, hasMorePages=false;
-let _searchArticles=null, _searchDebounce=null;
-window._articleMap={};
 
 const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
 const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
@@ -724,41 +739,39 @@ function setCategory(cat, scroll=true){
   loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){
-  activeLevel=document.getElementById('level').value;
-  localStorage.setItem('kab_level',activeLevel);
-  _searchArticles=null;searchQuery='';
-  document.getElementById('searchInput').value='';
-  document.getElementById('searchClear').classList.remove('show');
-  document.querySelector(`.cat[data-cat="${activeCat}"]`)?.classList.add('active');
-  currentPage=1;allArticles=[];loadNews(true);
-}
+function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
-  let list;
-  if(_searchArticles!==null){
-    list = _searchArticles;
-  } else {
-    list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
+  let list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
+
+  // search filter
+  if(searchQuery){
+    list = allArticles.filter(a =>
+      (a.headline||'').toLowerCase().includes(searchQuery) ||
+      (a.summary||'').toLowerCase().includes(searchQuery) ||
+      (LBL[a.category]||'').toLowerCase().includes(searchQuery)
+    );
   }
 
   const free   = list.filter(a=>!a.locked);
   const locked = list.filter(a=>a.locked);
-  const isSearch = _searchArticles!==null;
-  const lbl = isSearch
-    ? `🔍 Search — ${free.length} result${free.length!==1?'s':''}`
+  const lbl = searchQuery
+    ? `🔍 "${searchQuery}" — ${free.length} results`
     : activeCat==='all'
       ? `Latest stories — ${free.length} free + ${locked.length} subscriber`
       : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${free.length} free + ${locked.length} locked`;
   document.getElementById('secLbl').textContent = lbl;
 
   if(!list.length){
-    document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">🔍</span><h2>Nothing here!</h2><p>${isSearch?'No results — try different words!':'No stories in this category yet — try another!'}</p></div>`;
+    document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">🔍</span><h2>Nothing here!</h2><p>No stories in this category yet — try another!</p></div>`;
     return;
   }
 
-  const makeCard = (a) => {
+  // count free articles opened (track in sessionStorage)
+  const opened = parseInt(sessionStorage.getItem('kab_opened')||'0');
+
+  const makeCard = (a, i) => {
     const cat=a.category||'cool', em=EMO[cat]||'✨', lb=LBL[cat]||cat;
     const date=a.pubDate?new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
     if(a.locked){
@@ -775,7 +788,7 @@ function renderCards(){
         </div>
       </div>`;
     }
-    return `<div class="card r-${esc(cat)}" onclick="openArticle(${a.id})">
+    return `<div class="card r-${esc(cat)}" onclick="openArticle(${allArticles.indexOf(a)})">
       <span class="free-badge">FREE</span>
       <div class="card-top"><div class="c-ico">${em}</div><div class="c-meta"><span class="c-tag">${esc(lb)}</span><span class="c-src">${date}</span></div></div>
       <h2 class="c-title">${esc(a.headline)}</h2>
@@ -787,7 +800,7 @@ function renderCards(){
 
   const grid = document.getElementById('content').querySelector('.grid');
   const newCards = [...free,...locked].map(makeCard).join('');
-  if(!isSearch && currentPage > 1 && grid){
+  if(currentPage > 1 && grid){
     grid.insertAdjacentHTML('beforeend', newCards);
   } else {
     document.getElementById('content').innerHTML=`<div class="grid">${newCards}</div>`;
@@ -813,7 +826,7 @@ async function loadNews(reset=true){
       const existingIds = new Set(allArticles.map(a=>a.id));
       allArticles = [...allArticles, ...newArticles.filter(a=>!existingIds.has(a.id))];
     }
-    newArticles.forEach(a => { window._articleMap[a.id] = a; });
+    window._articles = allArticles;
     isSubscribed = data.subscribed;
     hasMorePages = data.hasMore;
 
@@ -932,8 +945,8 @@ function trackOpen(){
 
 
 function decodeHtml(s){const t=document.createElement('textarea');t.innerHTML=s;return t.value;}
-function openArticle(id){
-  const a = window._articleMap[id]; if(!a) return;
+function openArticle(i){
+  const a = window._articles?.[i]; if(!a) return;
   // if no full text (non-subscriber), show paywall
   if(!a.full){
     document.getElementById('paywall').style.display='block';
@@ -1006,6 +1019,18 @@ async function checkPromo(){
   }catch{}
 }
 
+/* ── newsletter ── */
+async function nlSignup(){
+  const email = document.getElementById('nlEmail').value.trim();
+  if(!email.includes('@')){ alert('Please enter a valid email!'); return; }
+  try{
+    const r = await fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d = await r.json();
+    if(d.ok){ document.getElementById('nlForm').style.display='none'; document.getElementById('nlOk').style.display='block'; }
+    else alert(d.error||'Something went wrong');
+  }catch(e){ alert('Could not subscribe right now, try again!'); }
+}
+
 /* ── dark mode ── */
 function toggleDark(){
   const isDark = document.body.classList.toggle('dark');
@@ -1061,33 +1086,15 @@ let searchQuery = '';
 function onSearch(val){
   searchQuery = val.trim().toLowerCase();
   document.getElementById('searchClear').classList.toggle('show', searchQuery.length > 0);
-  clearTimeout(_searchDebounce);
-  if(!searchQuery){
-    _searchArticles=null;
+  if(searchQuery){
+    document.querySelectorAll('.cat').forEach(b=>b.classList.remove('active'));
+  } else {
     document.querySelector(`.cat[data-cat="${activeCat}"]`)?.classList.add('active');
-    renderCards();
-    return;
   }
-  document.querySelectorAll('.cat').forEach(b=>b.classList.remove('active'));
-  if(searchQuery.length < 3){ renderCards(); return; }
-  _searchDebounce = setTimeout(doBackendSearch, 350);
-}
-async function doBackendSearch(){
-  const q = searchQuery; if(!q || q.length < 3) return;
-  document.getElementById('content').innerHTML=`<div class="sk-grid">${Array(4).fill(`<div class="sk-card"><div class="sk sk-i"></div><div class="sk sk-t"></div><div class="sk sk-l1"></div><div class="sk sk-l2"></div></div>`).join('')}</div>`;
-  try{
-    const r=await fetch(`/api/search?q=${encodeURIComponent(q)}&level=${activeLevel}`,{headers:authHeader()});
-    if(searchQuery!==q) return;
-    const data=await r.json();
-    const results=data.articles||[];
-    results.forEach(a=>{ window._articleMap[a.id]=a; });
-    _searchArticles=results;
-    renderCards();
-  }catch(e){ _searchArticles=null; renderCards(); }
+  renderCards();
 }
 function clearSearch(){
   searchQuery='';
-  _searchArticles=null;
   document.getElementById('searchInput').value='';
   document.getElementById('searchClear').classList.remove('show');
   document.querySelector(`.cat[data-cat="${activeCat}"]`)?.classList.add('active');
@@ -1106,7 +1113,7 @@ function showRelated(currentArticle){
   sec.style.display='block';
   const bgColors={robots:'var(--teal-lt)',art:'var(--pink-lt)',science:'var(--blue-lt)',gaming:'var(--purple-lt)',animals:'var(--green-lt)',space:'var(--coral-lt)',cool:'var(--amber-lt)'};
   document.getElementById('relatedGrid').innerHTML = related.map(a=>`
-    <div class="related-card" onclick="closeArtModal();setTimeout(()=>openArticle(${a.id}),150)">
+    <div class="related-card" onclick="closeArtModal();setTimeout(()=>openArticle(${allArticles.indexOf(a)}),150)">
       <div class="related-card-emoji" style="background:${bgColors[a.category]||'var(--purple-lt)'}">${EMO[a.category]||'✨'}</div>
       <div class="related-card-info">
         <div class="related-card-cat">${LBL[a.category]||a.category}</div>
@@ -1117,7 +1124,7 @@ function showRelated(currentArticle){
 }
 
 function startCountdown(){
-  const end = new Date('2026-06-30T00:00:00Z');
+  const end = new Date('2026-06-01T00:00:00Z');
   function tick(){
     const diff = end - Date.now();
     if(diff<=0){document.getElementById('countdownSec').style.display='none';return;}
@@ -1149,12 +1156,6 @@ function populateMissing(){
 /* ── init ── */
 if(new URLSearchParams(window.location.search).get('canceled')==='1'){
   setTimeout(()=>alert('No worries! You can subscribe anytime.'),500);
-}
-// restore age level preference
-const _savedLevel = localStorage.getItem('kab_level');
-if(_savedLevel && ['young','middle','older'].includes(_savedLevel)){
-  activeLevel=_savedLevel;
-  document.getElementById('level').value=_savedLevel;
 }
 startCountdown();
 initTicker();
