@@ -578,6 +578,54 @@ app.get('/api/promo', (req, res) => {
   res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-30' });
 });
 
+/* ─── SEARCH API ──────────────────────────────── */
+app.get('/api/search', (req, res) => {
+  const level = ['young','middle','older'].includes(req.query.level) ? req.query.level : 'middle';
+  const q = (req.query.q || '').trim().slice(0, 100);
+  if (!q || q.length < 2) return res.json({ ok: true, count: 0, articles: [] });
+
+  let subscribed = false;
+  const header = req.headers.authorization || '';
+  const tkn = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (tkn) {
+    try { const decoded = jwt.verify(tkn, JWT_SECRET); subscribed = isSubscribed(decoded.id); } catch {}
+  }
+
+  const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+
+  // determine free articles (same 1/3 rule as /api/news)
+  const CATS = ['robots','art','science','gaming','animals','space','cool'];
+  const freeIds = new Set();
+  if (!subscribed) {
+    CATS.forEach(c => {
+      const catArts = cache.articles.filter(a => a.category === c);
+      const freeCount = Math.max(2, Math.ceil(catArts.length / 3));
+      catArts.slice(0, freeCount).forEach(a => freeIds.add(a.id));
+    });
+  }
+
+  const matches = cache.articles.filter(a => {
+    const text = ((a.headline || '') + ' ' + (a.levels?.[level]?.summary || '') + ' ' + (a.category || '')).toLowerCase();
+    return words.every(w => text.includes(w));
+  }).slice(0, 60);
+
+  const articles = matches.map(a => {
+    const isFree = subscribed || freeIds.has(a.id);
+    return {
+      id:       a.id,
+      headline: a.headline,
+      category: a.category,
+      pubDate:  a.pubDate,
+      summary:  isFree ? (a.levels?.[level]?.summary || '') : (a.levels?.[level]?.summary || '').split('.')[0] + '...',
+      full:     isFree ? (a.levels?.[level]?.full    || '') : '',
+      wow:      isFree ? (a.levels?.[level]?.wow     || '') : '',
+      locked:   !isFree,
+    };
+  });
+
+  res.json({ ok: true, count: articles.length, articles });
+});
+
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
 
 app.post('/api/admin/refresh', (req,res) => {
