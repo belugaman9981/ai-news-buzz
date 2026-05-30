@@ -8,6 +8,6 @@ const adapter = new FileSync(file);
 const db      = low(adapter);
 
 // seed defaults
-db.defaults({ users: [] }).write();
+db.defaults({ users: [], newsletter: [] }).write();
 
 module.exports = db;
