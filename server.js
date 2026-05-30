@@ -30,7 +30,7 @@ if (!process.env.GEMINI_API_KEY)    { console.warn('⚠ GEMINI_API_KEY not set �
 if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not set — payments disabled'); }
 
 const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }) : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const parser = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 const axios  = require('axios');
