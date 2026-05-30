@@ -60,13 +60,13 @@ const RSS_FEEDS = [
 ];
 
 const CATEGORY_KEYWORDS = {
-  robots:  ['robot','robotic','drone','autonomous','humanoid','mechanical'],
-  art:     ['dall-e','midjourney','stable diffusion','image generation','creative ai','suno','runway','sora','generative art'],
-  gaming:  ['game','gaming','video game','minecraft','esport','npc','unity','unreal'],
-  animals: ['animal','wildlife','species','ecology','biology','nature','ocean','bird','whale','conservation'],
-  space:   ['space','nasa','astronaut','planet','satellite','telescope','mars','rocket','astronomy'],
-  science: ['research','study','discovery','medical','health','brain','climate','quantum','cancer','diagnosis'],
-  cool:    ['chatgpt','gpt-4','gemini','claude','llm','language model','openai','deepmind','anthropic','nvidia'],
+  robots:  ['robot','robotic','drone','autonomous','humanoid','mechanical','boston dynamics','warehouse','delivery bot','self-driving','driverless','autopilot'],
+  art:     ['dall-e','midjourney','stable diffusion','image generation','generative art','creative ai','suno','runway','sora','ai music','ai video','ai image','ai art','text-to-image','text to image'],
+  gaming:  ['game','gaming','video game','minecraft','fortnite','esport','npc','unity','unreal','playstation','xbox','nintendo','steam','gamer','gameplay','game dev','game ai'],
+  animals: ['animal','wildlife','species','ecology','biology','nature','ocean','bird','whale','conservation','endangered','pet','dog','cat','fish','monkey','elephant','zoo','habitat'],
+  space:   ['space','nasa','astronaut','planet','satellite','telescope','mars','rocket','astronomy','cosmos','exoplanet','james webb','moon','orbit','galaxy','star','solar system','spacex'],
+  science: ['research','study','discovery','medical','health','brain','climate','quantum','physics','chemistry','cancer','diagnosis','medicine','hospital','scientist','laboratory','experiment','gene','dna'],
+  cool:    ['chatgpt','gpt','gemini','llm','language model','openai','deepmind','anthropic','nvidia','chip','processor','neural network','machine learning','breakthrough','record','first ever','new model','ai assistant','copilot'],
 };
 function detectCategory(title, summary) {
   const text = (title + ' ' + summary).toLowerCase();
@@ -112,7 +112,13 @@ async function fetchArticleBody(url) {
 /* ── fetch HN stories ── */
 async function fetchHNStories() {
   try {
-    const queries = ['artificial intelligence','openai','robotics','LLM','GPT','deepmind','anthropic','machine learning','AI art','AI gaming','AI animals','AI space','AI science'];
+    const queries = [
+      'artificial intelligence', 'machine learning', 'openai GPT',
+      'robotics automation', 'AI gaming video games',
+      'AI animals wildlife nature', 'space NASA rocket',
+      'AI art image generation', 'AI medical health',
+      'deepmind anthropic nvidia', 'AI science discovery'
+    ];
     // fetch multiple queries in parallel
     const results = await Promise.all(
       queries.slice(0,7).map(q =>
