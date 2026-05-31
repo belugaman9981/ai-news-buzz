@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kids AI Buzz — AI News for Kids</title>
-<meta name="description" content="The coolest AI news explained for kids — robots, art, science, gaming & more!">
+<meta name="description" content="The coolest AI news explained for kids — robots, art, science, gaming & more! Updated every 30 minutes.">
+<meta name="keywords" content="AI news for kids, artificial intelligence kids, robot news, science news children, kids tech news">
+<meta property="og:title" content="Kids AI Buzz — AI News for Kids">
+<meta property="og:description" content="Real AI stories made fun and easy for kids. Updated every 30 minutes!">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ai-news-buzz.onrender.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kids AI Buzz — AI News for Kids">
+<meta name="twitter:description" content="The coolest AI news explained for kids!">
+<link rel="canonical" href="https://ai-news-buzz.onrender.com">
 <meta name="theme-color" content="#7C6FF7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,7 +146,29 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-
 .card{cursor:pointer}
 .read-more{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--purple);margin-top:4px}
 
-/* SEARCH */
+/* SHARE */
+.art-share{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:1.25rem;padding-top:1.25rem;border-top:1.5px solid var(--border)}
+.art-share-label{font-size:13px;font-weight:800;color:var(--muted);margin-right:4px}
+.share-btn{padding:7px 14px;border-radius:99px;border:1.5px solid var(--border);background:var(--bg);font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s;color:var(--text)}
+.share-btn:hover{border-color:var(--purple);color:var(--purple);transform:translateY(-2px)}
+.share-copied{font-size:13px;font-weight:800;color:var(--teal);display:none;margin-top:6px}
+.share-copied.show{display:block}
+
+/* BADGES */
+.badges-section{position:relative;z-index:1;background:var(--surface);border-top:1.5px solid var(--border);padding:3rem 2rem;text-align:center}
+.badges-inner{max-width:700px;margin:0 auto}
+.badges-inner h2{font-family:'Lilita One',sans-serif;font-size:28px;margin-bottom:.4rem;color:var(--text)}
+.badges-inner p{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:2rem}
+.badges-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px}
+.badge-card{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:1.25rem 1rem;text-align:center;transition:all .2s}
+.badge-card.earned{border-color:var(--amber);background:var(--amber-lt);box-shadow:0 4px 16px rgba(255,187,51,.25)}
+.badge-card.locked-badge{opacity:.4;filter:grayscale(1)}
+.badge-icon{font-size:36px;margin-bottom:.5rem}
+.badge-name{font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px}
+.badge-desc{font-size:11px;color:var(--muted);font-weight:600}
+.badge-earned-label{font-size:10px;font-weight:800;color:#8A5C00;background:var(--amber);border-radius:99px;padding:2px 8px;margin-top:6px;display:inline-block}
+
+
 .search-bar{position:relative;z-index:1;padding:0 2rem 1.5rem;display:flex;justify-content:center;animation:fadeUp .5s .25s ease both}
 .search-wrap{position:relative;width:100%;max-width:520px}
 .search-input{width:100%;padding:11px 20px 11px 44px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
@@ -428,7 +459,7 @@ body.dark .modal{background:var(--surface)}
 
 <!-- SOCIAL PROOF -->
 <div class="social-proof">
-  <div class="proof-item"><strong>Unlimited</strong> fresh AI stories</div>
+  <div class="proof-item"><strong>84</strong> fresh AI stories</div>
   <div class="proof-item"><strong>7</strong> topic categories</div>
   <div class="proof-item"><strong>3</strong> reading levels</div>
   <div class="proof-item"><strong>⭐⭐⭐⭐⭐</strong> loved by kids</div>
@@ -453,12 +484,12 @@ body.dark .modal{background:var(--surface)}
   <div class="paywall-card">
     <div style="font-size:36px;margin-bottom:.5rem">🔒</div>
     <h2>Unlock all stories!</h2>
-    <p>You're seeing 3 of <span id="totalCount">Unlimited</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
+    <p>You're seeing 3 of <span id="totalCount">84</span> stories. Start your <strong>7-day free trial</strong> to read everything!</p>
     <div class="price-tag" id="paywallPrice">$3.99<span>/month</span></div>
     <div id="paywallPromoNote" style="display:none;font-size:13px;opacity:.8;margin-top:-.5rem;margin-bottom:.5rem;font-weight:700">🔥 Promo price — ends June 1st! Regular price $3.99/mo</div>
     <div class="perks">
       <span class="perk">✅ 7-day free trial</span>
-      <span class="perk">✅ All articles</span>
+      <span class="perk">✅ All 63 articles</span>
       <span class="perk">✅ Updated every 2 hours</span>
       <span class="perk">✅ Cancel anytime</span>
     </div>
@@ -517,7 +548,7 @@ body.dark .modal{background:var(--surface)}
       <div class="compare-row">
         <div class="compare-feature">📰 Articles per refresh</div>
         <div class="compare-free"><span class="cv no">6</span></div>
-        <div class="compare-pro"><span class="cv yes">Infinite</span></div>
+        <div class="compare-pro"><span class="cv yes">63</span></div>
       </div>
       <div class="compare-row">
         <div class="compare-feature">📖 Full article reading</div>
@@ -576,6 +607,15 @@ body.dark .modal{background:var(--surface)}
   <div class="facts-track" id="factsTrack"></div>
 </div>
 
+<!-- BADGES -->
+<section class="badges-section" id="badgesSection" style="display:none">
+  <div class="badges-inner">
+    <h2>🏆 Your badges</h2>
+    <p>Read articles to earn badges — how many can you collect?</p>
+    <div class="badges-grid" id="badgesGrid"></div>
+  </div>
+</section>
+
 <!-- NEWSLETTER -->
 <section style="position:relative;z-index:1;background:var(--purple);color:#fff;padding:3.5rem 2rem;text-align:center">
   <div style="max-width:520px;margin:0 auto">
@@ -618,7 +658,7 @@ body.dark .modal{background:var(--surface)}
 <div class="sticky-bar" id="stickyBar">
   <div class="sticky-bar-text">
     <strong>📰 You've read your 6 free articles!</strong>
-    Start your 7-day free trial to read all stories — then just $3.99/month.
+    Start your 7-day free trial to read all 63 stories — then just $3.99/month.
   </div>
   <button class="sticky-bar-btn" onclick="subscribe()">Start Free Trial →</button>
   <button class="sticky-bar-close" onclick="document.getElementById('stickyBar').classList.remove('show')" title="Close">✕</button>
@@ -688,6 +728,13 @@ body.dark .modal{background:var(--surface)}
     <h2 class="art-title" id="artTitle"></h2>
     <div class="art-body" id="artBody"></div>
     <div class="art-wow"><span>💬</span><span id="artWow"></span></div>
+    <div class="art-share">
+      <span class="art-share-label">Share this story:</span>
+      <button class="share-btn share-copy"    onclick="shareArticle('copy')">🔗 Copy link</button>
+      <button class="share-btn share-whatsapp" onclick="shareArticle('whatsapp')">💬 WhatsApp</button>
+      <button class="share-btn share-twitter"  onclick="shareArticle('twitter')">🐦 Twitter</button>
+    </div>
+    <div class="share-copied" id="shareCopied">✅ Link copied!</div>
     <div class="related-section" id="relatedSection" style="display:none">
       <div class="related-title">📖 Related stories</div>
       <div class="related-grid" id="relatedGrid"></div>
@@ -969,9 +1016,11 @@ function openArticle(i){
   const fullText = decodeHtml(a.full || a.summary);
   bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('');
   document.getElementById('artWow').textContent = decodeHtml(a.wow);
+  currentArticleTitle = a.headline;
   document.getElementById('artOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   trackOpen();
+  recordRead(a.category||'cool');
   showRelated(a);
 }
 function closeArtModal(){
@@ -1020,7 +1069,110 @@ async function checkPromo(){
   }catch{}
 }
 
-/* ── newsletter ── */
+/* ── share ── */
+let currentArticleTitle = '';
+function shareArticle(type){
+  const url  = `${window.location.origin}?article=${encodeURIComponent(currentArticleTitle)}`;
+  const text = `Check out this article on Kids AI Buzz: "${currentArticleTitle}"`;
+  if(type==='copy'){
+    navigator.clipboard.writeText(url).then(()=>{
+      const el = document.getElementById('shareCopied');
+      el.classList.add('show');
+      setTimeout(()=>el.classList.remove('show'), 2500);
+    });
+  } else if(type==='whatsapp'){
+    window.open(`https://wa.me/?text=${encodeURIComponent(text+' '+url)}`, '_blank');
+  } else if(type==='twitter'){
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+  }
+}
+
+/* ── badges ── */
+const BADGES = [
+  { id:'first',    icon:'🌟', name:'First read',      desc:'Read your first article',     req: a => a >= 1  },
+  { id:'five',     icon:'📚', name:'Bookworm',         desc:'Read 5 articles',             req: a => a >= 5  },
+  { id:'ten',      icon:'🔥', name:'On fire!',         desc:'Read 10 articles',            req: a => a >= 10 },
+  { id:'twenty',   icon:'🏆', name:'Super reader',     desc:'Read 20 articles',            req: a => a >= 20 },
+  { id:'fifty',    icon:'🚀', name:'AI expert',        desc:'Read 50 articles',            req: a => a >= 50 },
+  { id:'robots',   icon:'🤖', name:'Robot fan',        desc:'Read 3 robot articles',       req: (a,c) => (c.robots||0) >= 3 },
+  { id:'space',    icon:'🚀', name:'Space cadet',      desc:'Read 3 space articles',       req: (a,c) => (c.space||0)  >= 3 },
+  { id:'art',      icon:'🎨', name:'AI artist',        desc:'Read 3 AI art articles',      req: (a,c) => (c.art||0)    >= 3 },
+  { id:'science',  icon:'🔬', name:'Scientist',        desc:'Read 3 science articles',     req: (a,c) => (c.science||0)>= 3 },
+  { id:'gaming',   icon:'🎮', name:'Gamer',            desc:'Read 3 gaming articles',      req: (a,c) => (c.gaming||0) >= 3 },
+  { id:'allcats',  icon:'🌈', name:'All-rounder',      desc:'Read from every category',    req: (a,c) => Object.values(c).every(v=>v>=1) },
+  { id:'streak3',  icon:'💫', name:'3-day streak',     desc:'Visit 3 days in a row',       req: (a,c,s) => s >= 3 },
+];
+
+function getBadgeStats(){
+  const reads = JSON.parse(localStorage.getItem('kab_reads')||'{}');
+  // reads = { total: N, byCategory: {...}, streak: N }
+  return {
+    total: reads.total || 0,
+    byCat: reads.byCat || {},
+    streak: reads.streak || 0,
+  };
+}
+
+function recordRead(category){
+  const reads = JSON.parse(localStorage.getItem('kab_reads')||'{}');
+  reads.total = (reads.total||0) + 1;
+  reads.byCat = reads.byCat || {};
+  reads.byCat[category] = (reads.byCat[category]||0) + 1;
+
+  // streak tracking
+  const today = new Date().toDateString();
+  const last  = reads.lastVisit;
+  const yesterday = new Date(Date.now()-86400000).toDateString();
+  if(last === today){ /* same day, no change */ }
+  else if(last === yesterday){ reads.streak = (reads.streak||0) + 1; }
+  else { reads.streak = 1; }
+  reads.lastVisit = today;
+
+  localStorage.setItem('kab_reads', JSON.stringify(reads));
+  updateBadges();
+}
+
+function updateBadges(){
+  const { total, byCat, streak } = getBadgeStats();
+  const earned = new Set(JSON.parse(localStorage.getItem('kab_earned')||'[]'));
+  let newEarned = false;
+
+  const grid = document.getElementById('badgesGrid');
+  if(!grid) return;
+
+  const html = BADGES.map(b => {
+    const isEarned = b.req(total, byCat, streak);
+    if(isEarned && !earned.has(b.id)){
+      earned.add(b.id);
+      newEarned = true;
+      // show toast
+      setTimeout(()=>showBadgeToast(b), 500);
+    }
+    return `<div class="badge-card ${isEarned?'earned':'locked-badge'}">
+      <div class="badge-icon">${b.icon}</div>
+      <div class="badge-name">${b.name}</div>
+      <div class="badge-desc">${b.desc}</div>
+      ${isEarned?`<span class="badge-earned-label">✓ Earned!</span>`:''}
+    </div>`;
+  }).join('');
+
+  grid.innerHTML = html;
+  if(newEarned) localStorage.setItem('kab_earned', JSON.stringify([...earned]));
+
+  // show badges section if at least 1 earned
+  const earnedCount = BADGES.filter(b=>b.req(total,byCat,streak)).length;
+  document.getElementById('badgesSection').style.display = earnedCount > 0 ? 'block' : 'none';
+}
+
+function showBadgeToast(badge){
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--amber);color:var(--text);padding:12px 24px;border-radius:99px;font-family:'Lilita One',sans-serif;font-size:16px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.2);animation:pop .3s ease`;
+  t.textContent = `${badge.icon} New badge: ${badge.name}!`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
+
+
 async function nlSignup(){
   const email = document.getElementById('nlEmail').value.trim();
   if(!email.includes('@')){ alert('Please enter a valid email!'); return; }
@@ -1163,6 +1315,7 @@ initTicker();
 checkPromo();
 checkSession().then(loadNews);
 setInterval(()=>loadNews(true), 5*60*1000);
+updateBadges();
 
 // infinite scroll — auto load more when Load More button is visible
 const _observer = new IntersectionObserver(entries => {
