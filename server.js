@@ -213,13 +213,26 @@ Each object must have exactly:
     "older":  { "summary": "3 sentences age 13",      "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
   }
 }
-Rules: paragraphs MUST be separated by \\n\\n, wow must be specific to THIS story, never say "big deal for AI" or "AI is amazing".`;
+CRITICAL rules:
+- paragraphs MUST be separated by \\n\\n
+- wow must be specific to THIS story — a real number, name, or detail. NEVER say "big deal for AI" or "AI is amazing"
+- For category, be creative and varied — use ALL categories across the batch:
+  robots = self-driving, drones, automation, humanoids, robotic arms
+  art = image/video/music generation, creative tools, AI design
+  science = medicine, climate, biology, physics, research, health
+  gaming = video games, esports, game AI, game engines
+  animals = wildlife, ecology, pets, nature, conservation
+  space = NASA, rockets, planets, telescopes, astronomy
+  cool = everything else (chatbots, LLMs, chips, breakthroughs)
+- SPREAD categories — if 3 articles, try to use 3 different categories`;
 
     for(let attempt=0; attempt<3; attempt++){
       try {
         if(!gemini) throw new Error('Gemini not configured');
         const result = await gemini.generateContent(prompt);
-        let text = result.response.text().replace(/```json|```/g,'').trim();
+        let text = result.response.text();
+        // strip markdown fences without using backticks in regex
+        text = text.split('\n').filter(l => !l.startsWith('```')).join('\n').trim();
         const s=text.indexOf('['),e=text.lastIndexOf(']');
         if(s===-1||e===-1) throw new Error('No JSON array');
         const rw=JSON.parse(text.slice(s,e+1));
@@ -267,13 +280,15 @@ async function refreshNews() {
     }
 
     // if any category has fewer than 9, fill from 'cool' overflow or recycle
+    // distribute overflow to emptiest categories first
+    const sortedBySize = [...CATS].sort((a,b) => byCategory[a].length - byCategory[b].length);
     let overflow = rewritten.filter(a => byCategory[a.category]?.length > 12);
-    CATS.forEach(c => {
+    for(const c of sortedBySize){
       while(byCategory[c].length < 12 && overflow.length){
         const extra = overflow.shift();
         byCategory[c].push({...extra, category: c});
       }
-    });
+    }
 
     // flatten: 12 per category = 84 total
     const final = [];
@@ -557,7 +572,12 @@ app.get('/api/news', (req, res) => {
   let freeArticles = [];
   if(!subscribed){
     const byCat = {};
-    CATS.forEach(c => byCat[c] = cache.articles.filter(a=>a.category===c).sort(()=>Math.random()-.5).slice(0,3));
+    // give 1/3 of each category free (min 2, max 4)
+    CATS.forEach(c => {
+      const catArticles = cache.articles.filter(a=>a.category===c);
+      const freeCount = Math.max(2, Math.min(4, Math.ceil(catArticles.length / 3)));
+      byCat[c] = catArticles.sort(()=>Math.random()-.5).slice(0, freeCount);
+    });
     freeArticles = CATS.flatMap(c => byCat[c]);
   }
 
