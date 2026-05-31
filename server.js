@@ -668,6 +668,17 @@ app.post('/api/admin/digest', async (req, res) => {
   sendWeeklyDigest();
 });
 
+/* ── GET /robots.txt ── */
+app.get('/robots.txt', (req, res) => {
+  const base = process.env.APP_URL || 'https://ai-news-buzz.onrender.com';
+  res.type('text/plain').send(
+`User-agent: *
+Allow: /
+
+Sitemap: ${base}/sitemap.xml`
+  );
+});
+
 /* ── GET /sitemap.xml ── */
 app.get('/sitemap.xml', (req, res) => {
   const base = process.env.APP_URL || 'https://ai-news-buzz.onrender.com';
