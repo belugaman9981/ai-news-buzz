@@ -648,6 +648,29 @@ app.post('/api/admin/digest', async (req, res) => {
   sendWeeklyDigest();
 });
 
+/* ── GET /sitemap.xml ── */
+app.get('/sitemap.xml', (req, res) => {
+  const base = process.env.APP_URL || 'https://ai-news-buzz.onrender.com';
+  const urls = [
+    { loc: base, priority: '1.0', changefreq: 'hourly' },
+    { loc: `${base}/#pricing`, priority: '0.8', changefreq: 'monthly' },
+    ...cache.articles.map(a => ({
+      loc: `${base}/?article=${encodeURIComponent(a.headline||'')}`,
+      priority: '0.6',
+      changefreq: 'daily'
+    }))
+  ];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u=>`  <url>
+    <loc>${u.loc}</loc>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+  res.header('Content-Type','application/xml').send(xml);
+});
+
 app.get('*', (_,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 
 /* ═══════════════════════════════════════════════
