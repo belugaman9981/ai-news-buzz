@@ -206,6 +206,16 @@ body.dark .search-input{background:var(--surface);border-color:var(--border)}
 .proof-item{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--muted)}
 .proof-item strong{color:var(--text);font-size:17px;font-family:'Lilita One',sans-serif}
 
+/* BACK TO TOP */
+.back-top{position:fixed;bottom:5rem;right:1.5rem;z-index:299;width:44px;height:44px;border-radius:50%;background:var(--purple);color:#fff;border:none;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(124,111,247,.4);transition:all .2s}
+.back-top.show{display:flex}
+.back-top:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(124,111,247,.5)}
+
+/* STREAK */
+.streak-badge{display:flex;align-items:center;gap:5px;background:var(--amber-lt);border:1.5px solid var(--amber);border-radius:99px;padding:4px 12px;font-size:13px;font-weight:800;color:#8A5C00;cursor:pointer;transition:all .15s}
+.streak-badge:hover{transform:translateY(-2px)}
+.streak-num{font-family:'Lilita One',sans-serif;font-size:16px;color:#8A5C00}
+
 /* STICKY BAR */
 .sticky-bar{position:fixed;bottom:0;left:0;right:0;z-index:300;background:linear-gradient(90deg,var(--purple-dk),var(--purple));color:#fff;padding:12px 2rem;display:none;align-items:center;justify-content:space-between;gap:1rem;box-shadow:0 -4px 24px rgba(124,111,247,.5)}
 .sticky-bar.show{display:flex}
@@ -406,6 +416,9 @@ body.dark .modal{background:var(--surface)}
   <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
   <div class="hdr-right">
     <span class="lu-badge" id="luBadge">Loading...</span>
+    <div class="streak-badge" id="streakBadge" style="display:none" title="Your reading streak!">
+      🔥 <span class="streak-num" id="streakNum">1</span> day streak!
+    </div>
     <button class="dark-btn" id="darkBtn" onclick="toggleDark()" title="Toggle dark mode">🌙</button>
     <div class="lvl-pill">Level:
       <select id="level" onchange="onLevelChange()">
@@ -653,6 +666,9 @@ body.dark .modal{background:var(--surface)}
     <div class="suggest-ok" id="suggestOk">🎉 Thanks! We'll try to cover that soon!</div>
   </div>
 </section>
+
+<!-- BACK TO TOP -->
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
 
 <!-- STICKY SUBSCRIBE BAR -->
 <div class="sticky-bar" id="stickyBar">
@@ -1130,6 +1146,7 @@ function recordRead(category){
 
   localStorage.setItem('kab_reads', JSON.stringify(reads));
   updateBadges();
+  updateStreak();
 }
 
 function updateBadges(){
@@ -1184,7 +1201,28 @@ async function nlSignup(){
   }catch(e){ alert('Could not subscribe right now, try again!'); }
 }
 
-/* ── dark mode ── */
+/* ── back to top ── */
+window.addEventListener('scroll', () => {
+  document.getElementById('backTop').classList.toggle('show', window.scrollY > 400);
+});
+
+/* ── reading streak ── */
+function updateStreak(){
+  const reads = JSON.parse(localStorage.getItem('kab_reads') || '{}');
+  const streak = reads.streak || 0;
+  const badge  = document.getElementById('streakBadge');
+  const num    = document.getElementById('streakNum');
+  if(streak >= 1){
+    badge.style.display = 'flex';
+    num.textContent = streak;
+    // pulse animation on streak > 1
+    if(streak > 1) badge.style.animation = 'wiggle 1s ease';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+
 function toggleDark(){
   const isDark = document.body.classList.toggle('dark');
   localStorage.setItem('kab_dark', isDark ? '1' : '0');
@@ -1316,6 +1354,7 @@ checkPromo();
 checkSession().then(loadNews);
 setInterval(()=>loadNews(true), 5*60*1000);
 updateBadges();
+updateStreak();
 
 // infinite scroll — auto load more when Load More button is visible
 const _observer = new IntersectionObserver(entries => {
