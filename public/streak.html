@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Streak & Badges — Kids AI Buzz</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --purple:#7C6FF7;--purple-lt:#EAE8FF;--purple-dk:#4538C9;
+  --teal:#1CC99A;--teal-lt:#D4F7ED;
+  --amber:#FFBB33;--amber-lt:#FFF5D0;
+  --bg:#F5F3FF;--surface:#fff;--text:#1A1035;--muted:#6B638A;--border:#E3DFF7;
+  --r:20px;--r-sm:12px;
+}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 2rem;background:var(--surface);border-bottom:1.5px solid var(--border);position:sticky;top:0;z-index:100}
+.logo{font-family:'Lilita One',sans-serif;font-size:22px;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:6px}
+.logo .bz{color:var(--purple)}
+.back-link{font-size:14px;font-weight:800;color:var(--purple);text-decoration:none;display:flex;align-items:center;gap:5px}
+.back-link:hover{opacity:.75}
+
+/* STREAK CARD */
+.streak-card{background:var(--surface);border:2px solid var(--amber);border-radius:var(--r);padding:2.5rem 2rem;text-align:center;box-shadow:0 8px 32px rgba(255,187,51,.2);max-width:400px;margin:0 auto 2rem}
+.streak-flame{font-size:72px;margin-bottom:.5rem}
+.streak-count{font-family:'Lilita One',sans-serif;font-size:64px;color:#8A5C00;line-height:1}
+.streak-label{font-size:18px;font-weight:800;color:#8A5C00;margin-top:.25rem}
+.streak-sub{font-size:14px;font-weight:600;color:var(--muted);margin-top:.5rem}
+.streak-zero{font-size:15px;font-weight:700;color:var(--muted);margin-top:.75rem}
+
+/* BADGES */
+.badges-section{max-width:800px;margin:0 auto}
+.badges-section h2{font-family:'Lilita One',sans-serif;font-size:28px;margin-bottom:.4rem;color:var(--text)}
+.badges-section > p{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:1.75rem}
+.badges-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px}
+.badge-card{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:1.25rem 1rem;text-align:center;transition:all .2s}
+.badge-card.earned{border-color:var(--amber);background:var(--amber-lt);box-shadow:0 4px 16px rgba(255,187,51,.25)}
+.badge-card.locked-badge{opacity:.4;filter:grayscale(1)}
+.badge-icon{font-size:36px;margin-bottom:.5rem}
+.badge-name{font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px}
+.badge-desc{font-size:11px;color:var(--muted);font-weight:600}
+.badge-earned-label{font-size:10px;font-weight:800;color:#8A5C00;background:var(--amber);border-radius:99px;padding:2px 8px;margin-top:6px;display:inline-block}
+
+/* EARNED COUNT */
+.earned-pill{display:inline-flex;align-items:center;gap:6px;background:var(--purple-lt);border:1.5px solid var(--purple);border-radius:99px;padding:5px 16px;font-size:14px;font-weight:800;color:var(--purple-dk);margin-bottom:1.5rem}
+
+/* MAIN WRAPPER */
+.main{padding:2.5rem 2rem;max-width:900px;margin:0 auto}
+
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+@keyframes pop{from{transform:translateX(-50%) scale(.7);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a class="logo" href="/"><span>✨</span>Kids AI <span class="bz">Buzz</span></a>
+  <a class="back-link" href="/">← Back to news</a>
+</header>
+
+<main class="main">
+
+  <!-- STREAK -->
+  <div class="streak-card" id="streakCard">
+    <div class="streak-flame">🔥</div>
+    <div class="streak-count" id="streakCount">0</div>
+    <div class="streak-label" id="streakLabel">day streak</div>
+    <div class="streak-sub" id="streakSub"></div>
+  </div>
+
+  <!-- BADGES -->
+  <section class="badges-section">
+    <h2>🏆 Your badges</h2>
+    <p>Read articles to earn badges — how many can you collect?</p>
+    <div class="earned-pill" id="earnedPill">🏅 0 / 12 earned</div>
+    <div class="badges-grid" id="badgesGrid"></div>
+  </section>
+
+</main>
+
+<script>
+const BADGES = [
+  { id:'first',    icon:'🌟', name:'First read',      desc:'Read your first article',     req: a => a >= 1  },
+  { id:'five',     icon:'📚', name:'Bookworm',         desc:'Read 5 articles',             req: a => a >= 5  },
+  { id:'ten',      icon:'🔥', name:'On fire!',         desc:'Read 10 articles',            req: a => a >= 10 },
+  { id:'twenty',   icon:'🏆', name:'Super reader',     desc:'Read 20 articles',            req: a => a >= 20 },
+  { id:'fifty',    icon:'🚀', name:'AI expert',        desc:'Read 50 articles',            req: a => a >= 50 },
+  { id:'robots',   icon:'🤖', name:'Robot fan',        desc:'Read 3 robot articles',       req: (a,c) => (c.robots||0) >= 3 },
+  { id:'space',    icon:'🚀', name:'Space cadet',      desc:'Read 3 space articles',       req: (a,c) => (c.space||0)  >= 3 },
+  { id:'art',      icon:'🎨', name:'AI artist',        desc:'Read 3 AI art articles',      req: (a,c) => (c.art||0)    >= 3 },
+  { id:'science',  icon:'🔬', name:'Scientist',        desc:'Read 3 science articles',     req: (a,c) => (c.science||0)>= 3 },
+  { id:'gaming',   icon:'🎮', name:'Gamer',            desc:'Read 3 gaming articles',      req: (a,c) => (c.gaming||0) >= 3 },
+  { id:'allcats',  icon:'🌈', name:'All-rounder',      desc:'Read from every category',    req: (a,c) => Object.values(c).every(v=>v>=1) },
+  { id:'streak3',  icon:'💫', name:'3-day streak',     desc:'Visit 3 days in a row',       req: (a,c,s) => s >= 3 },
+];
+
+function getBadgeStats(){
+  const reads = JSON.parse(localStorage.getItem('kab_reads')||'{}');
+  return {
+    total: reads.total || 0,
+    byCat: reads.byCat || {},
+    streak: reads.streak || 0,
+  };
+}
+
+function render(){
+  const { total, byCat, streak } = getBadgeStats();
+  const earned = new Set(JSON.parse(localStorage.getItem('kab_earned')||'[]'));
+
+  // streak display
+  document.getElementById('streakCount').textContent = streak;
+  if(streak === 0){
+    document.getElementById('streakSub').textContent = 'Read an article to start your streak!';
+  } else if(streak === 1){
+    document.getElementById('streakSub').textContent = 'Come back tomorrow to keep it going!';
+  } else {
+    document.getElementById('streakSub').textContent = `Amazing! You've visited ${streak} days in a row!`;
+    document.getElementById('streakCard').style.animation = 'wiggle .8s ease';
+  }
+
+  // badges grid
+  const grid = document.getElementById('badgesGrid');
+  let earnedCount = 0;
+  const html = BADGES.map(b => {
+    const isEarned = b.req(total, byCat, streak);
+    if(isEarned) earnedCount++;
+    return `<div class="badge-card ${isEarned?'earned':'locked-badge'}">
+      <div class="badge-icon">${b.icon}</div>
+      <div class="badge-name">${b.name}</div>
+      <div class="badge-desc">${b.desc}</div>
+      ${isEarned?`<span class="badge-earned-label">✓ Earned!</span>`:''}
+    </div>`;
+  }).join('');
+  grid.innerHTML = html;
+
+  document.getElementById('earnedPill').textContent = `🏅 ${earnedCount} / ${BADGES.length} earned`;
+}
+
+render();
+</script>
+</body>
+</html>

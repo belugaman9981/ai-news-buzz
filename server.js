@@ -719,6 +719,7 @@ ${urls.map(u=>`  <url>
   res.header('Content-Type','application/xml').send(xml);
 });
 
+app.get('/streak', (_,res) => res.sendFile(path.join(__dirname,'public','streak.html')));
 app.get('*', (_,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 
 /* ═══════════════════════════════════════════════

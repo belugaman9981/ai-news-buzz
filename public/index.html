@@ -415,10 +415,10 @@ body.dark .modal{background:var(--surface)}
 <header class="hdr">
   <div style="display:flex;align-items:center;gap:6px">
     <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
-    <div class="streak-badge" id="streakBadge" style="display:none" title="Your reading streak!" onclick="document.getElementById('badgesSection').scrollIntoView({behavior:'smooth'})">
+    <a class="streak-badge" id="streakBadge" style="display:none" title="Your reading streak!" href="/streak">
       🔥 <span class="streak-num" id="streakNum">1</span> day streak
-    </div>
-    <button class="hdr-btn" id="badgesBtn" style="display:none;padding:5px 10px;font-size:12px" onclick="document.getElementById('badgesSection').scrollIntoView({behavior:'smooth'})" title="View your badges">🏆</button>
+    </a>
+    <a class="hdr-btn" id="badgesBtn" style="display:none;padding:5px 10px;font-size:12px" href="/streak" title="View your badges">🏆</a>
   </div>
   <div class="hdr-right">
     <span class="lu-badge" id="luBadge">Loading...</span>
@@ -624,13 +624,7 @@ body.dark .modal{background:var(--surface)}
 </div>
 
 <!-- BADGES -->
-<section class="badges-section" id="badgesSection" style="display:none">
-  <div class="badges-inner">
-    <h2>🏆 Your badges</h2>
-    <p>Read articles to earn badges — how many can you collect?</p>
-    <div class="badges-grid" id="badgesGrid"></div>
-  </div>
-</section>
+<div id="badgesGrid" style="display:none"></div>
 
 <!-- NEWSLETTER -->
 <section style="position:relative;z-index:1;background:var(--purple);color:#fff;padding:3.5rem 2rem;text-align:center">
