@@ -491,7 +491,7 @@ body.dark .modal{background:var(--surface)}
     </div>
   </div>
   <div style="text-align:center;margin-top:2rem">
-    <button id="loadMoreBtn" onclick="loadMore()" style="display:none;padding:12px 32px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:var(--purple);cursor:pointer;transition:all .15s">Load more stories ↓</button>
+    <button id="loadMoreBtn" onclick="loadMore()" style="display:none;padding:12px 36px;border-radius:99px;border:none;background:var(--purple);color:#fff;font-family:'Lilita One',sans-serif;font-size:18px;cursor:pointer;box-shadow:0 4px 16px rgba(124,111,247,.35);transition:all .15s">Load more stories ↓</button>
   </div>
 </main>
 
@@ -1350,13 +1350,6 @@ checkSession().then(loadNews);
 setInterval(()=>loadNews(true), 5*60*1000);
 updateBadges();
 updateStreak();
-
-// infinite scroll — auto load more when Load More button is visible
-const _observer = new IntersectionObserver(entries => {
-  if(entries[0].isIntersecting && hasMorePages && !isFetchingMore) loadMore();
-}, { threshold: 0.1 });
-const _sentinel = document.getElementById('loadMoreBtn');
-if(_sentinel) _observer.observe(_sentinel);
 </script>
 </body>
 </html>
