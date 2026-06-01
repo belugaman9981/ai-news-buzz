@@ -639,7 +639,16 @@ app.get('/api/news', (req, res) => {
     locked:   true,
   })) : [];
 
-  res.json({ ok:true, count:shaped.length, total:cache.articles.length, page, hasMore, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, articles:[...shaped, ...lockedShaped] });
+  // interleave: 1 free then 2 locked, so the paywall ratio is visible throughout the grid
+  const interleaved = [];
+  let fi = 0, li = 0;
+  while(fi < shaped.length || li < lockedShaped.length){
+    if(fi < shaped.length)    interleaved.push(shaped[fi++]);
+    if(li < lockedShaped.length) interleaved.push(lockedShaped[li++]);
+    if(li < lockedShaped.length) interleaved.push(lockedShaped[li++]);
+  }
+
+  res.json({ ok:true, count:shaped.length, total:cache.articles.length, page, hasMore, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, articles:interleaved });
 });
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
