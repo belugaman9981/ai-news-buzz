@@ -592,7 +592,7 @@ app.get('/api/news', (req, res) => {
     // give 1/3 of each category free (min 2, max 4)
     CATS.forEach(c => {
       const catArticles = cache.articles.filter(a=>a.category===c);
-      const freeCount = Math.max(3, Math.min(6, Math.ceil(catArticles.length / 3)));
+      const freeCount = Math.floor(catArticles.length / 3);
       byCat[c] = catArticles.sort(()=>Math.random()-.5).slice(0, freeCount);
     });
     freeArticles = CATS.flatMap(c => byCat[c]);
@@ -628,7 +628,7 @@ app.get('/api/news', (req, res) => {
 
   // locked previews only on first page
   // only show 6 locked teasers — enough to entice without being annoying
-  const lockedShaped = page === 1 ? lockedArticles.slice(0, 6).map(a => ({
+  const lockedShaped = page === 1 ? lockedArticles.slice(0, 12).map(a => ({
     id:       a.id,
     headline: a.headline,
     category: a.category,
