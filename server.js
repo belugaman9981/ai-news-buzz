@@ -42,6 +42,7 @@ const axios  = require('axios');
    SOURCES  — HN Algolia + RSS fallbacks
 ═══════════════════════════════════════════════ */
 const RSS_FEEDS = [
+  // General AI
   { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'   },
   { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'     },
   { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'    },
@@ -50,16 +51,27 @@ const RSS_FEEDS = [
   { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum' },
   { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'       },
   { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review' },
-  // gaming
+  // Robots specifically
+  { url: 'https://spectrum.ieee.org/feeds/topic/robotics.rss',                 source: 'IEEE Robotics' },
+  { url: 'https://techcrunch.com/category/robotics/feed/',                     source: 'TC Robotics'   },
+  { url: 'https://www.therobotreport.com/feed/',                               source: 'Robot Report'  },
+  // AI Art specifically
+  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq' },
+  { url: 'https://aiartists.org/feed',                                         source: 'AI Artists'    },
+  { url: 'https://techcrunch.com/category/media-entertainment/feed/',          source: 'TC Media'      },
+  // Science specifically
+  { url: 'https://www.newscientist.com/feed/home/',                            source: 'New Scientist' },
+  { url: 'https://feeds.feedburner.com/sciencedaily',                          source: 'Science Daily' },
+  { url: 'https://phys.org/rss-feed/breaking/',                                source: 'Phys.org'      },
+  // Gaming
   { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'      },
   { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'        },
-  // space
+  // Space
   { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'          },
   { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'     },
-  // animals / nature
+  // Animals / Nature
   { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'       },
-  // art / creative
-  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq' },
+  { url: 'https://www.sciencenews.org/feed',                                   source: 'Science News'  },
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -116,16 +128,21 @@ async function fetchArticleBody(url) {
 async function fetchHNStories() {
   try {
     const queries = [
-      'artificial intelligence', 'machine learning', 'openai GPT',
-      'robotics automation', 'AI gaming video games',
-      'AI animals wildlife nature', 'space NASA rocket',
-      'AI art image generation', 'AI medical health',
-      'deepmind anthropic nvidia', 'AI science discovery'
+      'artificial intelligence machine learning',
+      'robotics robot automation humanoid',
+      'AI art image generation Midjourney DALL-E Stable Diffusion',
+      'AI science medical research discovery',
+      'AI gaming video games NPC',
+      'space NASA rocket astronomy telescope',
+      'AI animals wildlife nature conservation',
+      'openai GPT deepmind anthropic',
+      'robot drone autonomous vehicle',
+      'AI medical health diagnosis',
     ];
-    // fetch multiple queries in parallel
+    // fetch all queries in parallel
     const results = await Promise.all(
-      queries.slice(0,7).map(q =>
-        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=15&numericFilters=points>20`, { timeout: 5000 })
+      queries.map(q =>
+        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=10&numericFilters=points>20`, { timeout: 5000 })
           .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
           .catch(()=>[])
       )
