@@ -155,7 +155,7 @@ async function fetchHNStories() {
 async function scrapeFeed(feed) {
   try {
     const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0, 10).map(i => ({
+    return (r.items || []).slice(0, 20).map(i => ({
       title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
       link:    i.link || '',
       pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
@@ -185,7 +185,7 @@ async function scrapeAllFeeds() {
     if (!seen.has(key)) { seen.add(key); dedup.push(item); }
   }
   dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 100); // grab top 100 to ensure 12 per category
+  const top = dedup.slice(0, 200); // grab top 200 to ensure more per category
   console.log(`   → ${top.length} stories found`);
 
   // fetch all bodies in parallel
@@ -200,13 +200,13 @@ async function scrapeAllFeeds() {
   })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
 
   console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 84);
+  return withContent.slice(0, 160);
 }
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  // only rewrite first 24 fresh articles per refresh — pool grows over time
-  const toRewrite = rawArticles.slice(0, 24);
+  // only rewrite first 48 fresh articles per refresh — pool grows over time
+  const toRewrite = rawArticles.slice(0, 48);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
   const BATCH=3; const results=[];
 
@@ -592,7 +592,7 @@ app.get('/api/news', (req, res) => {
     // give 1/3 of each category free (min 2, max 4)
     CATS.forEach(c => {
       const catArticles = cache.articles.filter(a=>a.category===c);
-      const freeCount = Math.max(2, Math.min(4, Math.ceil(catArticles.length / 3)));
+      const freeCount = Math.max(3, Math.min(6, Math.ceil(catArticles.length / 3)));
       byCat[c] = catArticles.sort(()=>Math.random()-.5).slice(0, freeCount);
     });
     freeArticles = CATS.flatMap(c => byCat[c]);
