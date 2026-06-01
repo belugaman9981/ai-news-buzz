@@ -413,12 +413,15 @@ body.dark .modal{background:var(--surface)}
 
 <!-- HEADER -->
 <header class="hdr">
-  <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
+  <div style="display:flex;align-items:center;gap:6px">
+    <a class="logo" href="/"><span class="ls">✨</span>Kids AI <span class="bz">Buzz</span></a>
+    <div class="streak-badge" id="streakBadge" style="display:none" title="Your reading streak!" onclick="document.getElementById('badgesSection').scrollIntoView({behavior:'smooth'})">
+      🔥 <span class="streak-num" id="streakNum">1</span> day streak
+    </div>
+    <button class="hdr-btn" id="badgesBtn" style="display:none;padding:5px 10px;font-size:12px" onclick="document.getElementById('badgesSection').scrollIntoView({behavior:'smooth'})" title="View your badges">🏆</button>
+  </div>
   <div class="hdr-right">
     <span class="lu-badge" id="luBadge">Loading...</span>
-    <div class="streak-badge" id="streakBadge" style="display:none" title="Your reading streak!">
-      🔥 <span class="streak-num" id="streakNum">1</span> day streak!
-    </div>
     <button class="dark-btn" id="darkBtn" onclick="toggleDark()" title="Toggle dark mode">🌙</button>
     <div class="lvl-pill">Level:
       <select id="level" onchange="onLevelChange()">
@@ -1176,9 +1179,10 @@ function updateBadges(){
   grid.innerHTML = html;
   if(newEarned) localStorage.setItem('kab_earned', JSON.stringify([...earned]));
 
-  // show badges section if at least 1 earned
+  // show badges section and header button if at least 1 earned
   const earnedCount = BADGES.filter(b=>b.req(total,byCat,streak)).length;
   document.getElementById('badgesSection').style.display = earnedCount > 0 ? 'block' : 'none';
+  document.getElementById('badgesBtn').style.display = earnedCount > 0 ? 'block' : 'none';
 }
 
 function showBadgeToast(badge){
