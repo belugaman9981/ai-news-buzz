@@ -1052,12 +1052,12 @@ function closeArticle(e){
 
 
 let promoCodeApplied = false;
-const VALID_PROMO = 'CODINGMINDS';
+const VALID_PROMOS = ['CODINGMINDS', 'TRAFALGAR'];
 
 function applyPromo(){
   const code = document.getElementById('promoInput').value.trim().toUpperCase();
   const fb   = document.getElementById('promoFeedback');
-  if(code === VALID_PROMO){
+  if(VALID_PROMOS.includes(code)){
     promoCodeApplied = true;
     fb.className = 'promo-feedback success';
     fb.textContent = '✅ Code applied! Your discount is locked in.';
