@@ -584,71 +584,32 @@ app.get('/api/news', (req, res) => {
 
   let articles = cache.articles;
 
-  // build free set: 3 per category
-  const CATS = ['robots','art','science','gaming','animals','space','cool'];
-  let freeArticles = [];
-  if(!subscribed){
-    const byCat = {};
-    // give 1/3 of each category free (min 2, max 4)
-    CATS.forEach(c => {
-      const catArticles = cache.articles.filter(a=>a.category===c);
-      const freeCount = Math.floor(catArticles.length / 3);
-      byCat[c] = catArticles.sort(()=>Math.random()-.5).slice(0, freeCount);
-    });
-    freeArticles = CATS.flatMap(c => byCat[c]);
-  }
-
   // filter by category
   if(category !== 'all'){
     articles = articles.filter(a=>a.category===category);
-    if(!subscribed) freeArticles = freeArticles.filter(a=>a.category===category);
   }
 
-  const freeIds = new Set(freeArticles.map(a=>a.id));
-  const lockedArticles = subscribed ? [] : articles.filter(a=>!freeIds.has(a.id));
-  const allSorted = subscribed ? articles : freeArticles;
+  // Mark every 3rd article (index 0, 3, 6...) as free — exactly 1/3, stable, already interleaved
+  const allShaped = articles.map((a, i) => {
+    const isFree = subscribed || (i % 3 === 0);
+    return {
+      id:       a.id,
+      headline: a.headline,
+      category: a.category,
+      pubDate:  a.pubDate,
+      summary:  isFree ? (a.levels?.[level]?.summary || '') : (a.levels?.[level]?.summary || '').split('.')[0] + '...',
+      full:     isFree ? (a.levels?.[level]?.full || '') : '',
+      wow:      isFree ? (a.levels?.[level]?.wow || '') : '',
+      locked:   !isFree,
+    };
+  });
 
   // paginate
-  const start     = (page - 1) * pageSize;
-  const sliced    = allSorted.slice(start, start + pageSize);
-  const hasMore   = subscribed
-    ? start + pageSize < articles.length
-    : false; // free users always see all their free articles on page 1
+  const start   = (page - 1) * pageSize;
+  const sliced  = allShaped.slice(start, start + pageSize);
+  const hasMore = start + pageSize < allShaped.length;
 
-  const shaped = sliced.map(a => ({
-    id:       a.id,
-    headline: a.headline,
-    category: a.category,
-    pubDate:  a.pubDate,
-    summary:  a.levels?.[level]?.summary || '',
-    full:     a.levels?.[level]?.full || '',
-    wow:      a.levels?.[level]?.wow || '',
-    locked:   false,
-  }));
-
-  // locked previews only on first page
-  // only show 6 locked teasers — enough to entice without being annoying
-  const lockedShaped = page === 1 ? lockedArticles.slice(0, 12).map(a => ({
-    id:       a.id,
-    headline: a.headline,
-    category: a.category,
-    pubDate:  a.pubDate,
-    summary:  (a.levels?.[level]?.summary || '').split('.')[0] + '...',
-    full:     '',
-    wow:      '',
-    locked:   true,
-  })) : [];
-
-  // interleave: 1 free then 2 locked, so the paywall ratio is visible throughout the grid
-  const interleaved = [];
-  let fi = 0, li = 0;
-  while(fi < shaped.length || li < lockedShaped.length){
-    if(fi < shaped.length)    interleaved.push(shaped[fi++]);
-    if(li < lockedShaped.length) interleaved.push(lockedShaped[li++]);
-    if(li < lockedShaped.length) interleaved.push(lockedShaped[li++]);
-  }
-
-  res.json({ ok:true, count:shaped.length, total:cache.articles.length, page, hasMore, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, articles:interleaved });
+  res.json({ ok:true, count:sliced.filter(a=>!a.locked).length, total:cache.articles.length, page, hasMore, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, subscribed, articles:sliced });
 });
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
