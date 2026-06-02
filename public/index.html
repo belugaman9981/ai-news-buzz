@@ -767,7 +767,7 @@ body.dark .modal{background:var(--surface)}
 /* ── state ── */
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
 let currentTab='login', token=localStorage.getItem('kab_token');
-let currentPage=1, isFetchingMore=false, hasMorePages=false;
+let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=2;
 
 const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
 const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
@@ -804,11 +804,12 @@ function setCategory(cat, scroll=true){
   activeCat=cat;
   currentPage=1;
   allArticles=[];
+  visibleFreeCount=2;
   document.querySelectorAll('.cat').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
   loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];loadNews(true);}
+function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=2;loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
@@ -824,21 +825,19 @@ function renderCards(){
   }
 
   const free   = list.filter(a=>!a.locked);
-  const locked = list.filter(a=>a.locked).slice(0, 6); // max 6 locked teasers
+  const locked = list.filter(a=>a.locked).slice(0, 4); // always show 4 locked teasers
+  const visibleFree = free.slice(0, visibleFreeCount); // show 2 free initially, up to 10
   const lbl = searchQuery
     ? `🔍 "${searchQuery}" — ${free.length} results`
     : activeCat==='all'
-      ? `Latest stories — ${free.length} free + ${locked.length} subscriber`
-      : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${free.length} free + ${locked.length} locked`;
+      ? `Latest stories — ${visibleFreeCount} free + ${locked.length} subscriber`
+      : `${EMO[activeCat]||''} ${LBL[activeCat]||activeCat} — ${visibleFreeCount} free + ${locked.length} locked`;
   document.getElementById('secLbl').textContent = lbl;
 
   if(!list.length){
     document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">🔍</span><h2>Nothing here!</h2><p>No stories in this category yet — try another!</p></div>`;
     return;
   }
-
-  // count free articles opened (track in sessionStorage)
-  const opened = parseInt(sessionStorage.getItem('kab_opened')||'0');
 
   const makeCard = (a, i) => {
     const cat=a.category||'cool', em=EMO[cat]||'✨', lb=LBL[cat]||cat;
@@ -867,13 +866,8 @@ function renderCards(){
     </div>`;
   };
 
-  const grid = document.getElementById('content').querySelector('.grid');
-  const newCards = [...free,...locked].map(makeCard).join('');
-  if(currentPage > 1 && grid){
-    grid.insertAdjacentHTML('beforeend', newCards);
-  } else {
-    document.getElementById('content').innerHTML=`<div class="grid">${newCards}</div>`;
-  }
+  const newCards = [...visibleFree,...locked].map(makeCard).join('');
+  document.getElementById('content').innerHTML=`<div class="grid">${newCards}</div>`;
 }
 
 /* ── load news ── */
@@ -925,6 +919,16 @@ async function loadNews(reset=true){
 }
 
 async function loadMore(){
+  const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
+  const free = list.filter(a=>!a.locked);
+  const cap = Math.min(free.length, 10);
+  if(visibleFreeCount < cap){
+    visibleFreeCount = cap; // reveal all remaining free (up to 10)
+    renderCards();
+    updateLoadMoreBtn();
+    return;
+  }
+  // fetch next page from server if there are more
   if(isFetchingMore || !hasMorePages) return;
   isFetchingMore = true;
   currentPage++;
@@ -936,7 +940,10 @@ async function loadMore(){
 function updateLoadMoreBtn(){
   const btn = document.getElementById('loadMoreBtn');
   if(!btn) return;
-  btn.style.display = hasMorePages ? 'block' : 'none';
+  const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
+  const free = list.filter(a=>!a.locked);
+  const canRevealMore = visibleFreeCount < Math.min(free.length, 10);
+  btn.style.display = (canRevealMore || hasMorePages) ? 'block' : 'none';
   btn.textContent = 'Load more stories ↓';
 }
 
