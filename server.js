@@ -194,8 +194,25 @@ async function scrapeAllFeeds() {
     seenTitles.add(titleKey);
     dedup.push(item);
   }
-  dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = dedup.slice(0, 200); // grab top 200 to ensure more per category
+  // semantic dedup — drop articles that cover the same subject as an earlier one
+  const STOP_WORDS = new Set(['a','an','the','is','are','was','were','has','have','had','be','been','being','in','on','at','to','for','of','and','or','but','with','by','from','as','it','its','this','that','how','why','what','when','where','who','will','can','could','would','should','may','might','new','says','say','said','use','uses','used','ai','after','before','over','more','than','about','into','all','up','out','one','two','three','first','just','not','their','they','its','our','your','his','her']);
+  function titleKeywords(t) {
+    return new Set(t.toLowerCase().replace(/[^a-z0-9 ]/g,'').split(/\s+/).filter(w => w.length > 3 && !STOP_WORDS.has(w)));
+  }
+  const semDedup = [], seenWordSets = [];
+  for (const item of dedup) {
+    const words = titleKeywords(item.title);
+    if (words.size === 0) { semDedup.push(item); continue; }
+    let tooSimilar = false;
+    for (const seen of seenWordSets) {
+      const overlap = [...words].filter(w => seen.has(w)).length / Math.min(words.size, seen.size);
+      if (overlap >= 0.5) { tooSimilar = true; break; }
+    }
+    if (!tooSimilar) { semDedup.push(item); seenWordSets.push(words); }
+  }
+
+  semDedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+  const top = semDedup.slice(0, 200); // grab top 200 to ensure more per category
   console.log(`   → ${top.length} stories found`);
 
   // fetch all bodies in parallel
@@ -619,12 +636,12 @@ app.get('/api/news', (req, res) => {
     articles = articles.filter(a=>a.category===category);
   }
 
-  // Cap free articles at 10 per category; subscribers see everything
+  // Cap free articles at 6 per category; subscribers see everything
   const catFreeCount = {};
   const allShaped = articles.map((a, i) => {
     const cat = a.category || 'cool';
     if (!catFreeCount[cat]) catFreeCount[cat] = 0;
-    const isFree = subscribed || catFreeCount[cat] < 10;
+    const isFree = subscribed || catFreeCount[cat] < 6;
     if (!subscribed && isFree) catFreeCount[cat]++;
     return {
       id:       a.id,
@@ -637,6 +654,9 @@ app.get('/api/news', (req, res) => {
       locked:   !isFree,
     };
   });
+
+  // Always show free articles before locked ones
+  allShaped.sort((a, b) => (a.locked ? 1 : 0) - (b.locked ? 1 : 0));
 
   // paginate
   const start   = (page - 1) * pageSize;
