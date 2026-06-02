@@ -662,7 +662,7 @@ app.get('/robots.txt', (req, res) => {
 `User-agent: *
 Allow: /
 
-Sitemap: ${base}/sitemap.xml` 
+Sitemap: ${base}/sitemap.xml`
   );
 });
 
