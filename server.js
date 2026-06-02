@@ -178,11 +178,15 @@ async function scrapeAllFeeds() {
   const rss = rssResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
   const all = [...hn, ...rss].filter(a => a.title?.length > 15);
 
-  // deduplicate
-  const seen = new Set(), dedup = [];
+  // deduplicate by URL (strip query params) and by title prefix
+  const seenUrls = new Set(), seenTitles = new Set(), dedup = [];
   for (const item of all) {
-    const key = item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,50);
-    if (!seen.has(key)) { seen.add(key); dedup.push(item); }
+    const urlKey = item.link ? (() => { try { const u = new URL(item.link); return u.hostname + u.pathname; } catch { return item.link; } })() : '';
+    const titleKey = item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0, 60);
+    if ((urlKey && seenUrls.has(urlKey)) || seenTitles.has(titleKey)) continue;
+    if (urlKey) seenUrls.add(urlKey);
+    seenTitles.add(titleKey);
+    dedup.push(item);
   }
   dedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
   const top = dedup.slice(0, 200); // grab top 200 to ensure more per category
@@ -589,9 +593,13 @@ app.get('/api/news', (req, res) => {
     articles = articles.filter(a=>a.category===category);
   }
 
-  // Mark every 3rd article (index 0, 3, 6...) as free — exactly 1/3, stable, already interleaved
+  // Cap free articles at 10 per category; subscribers see everything
+  const catFreeCount = {};
   const allShaped = articles.map((a, i) => {
-    const isFree = subscribed || (i % 3 === 0);
+    const cat = a.category || 'cool';
+    if (!catFreeCount[cat]) catFreeCount[cat] = 0;
+    const isFree = subscribed || catFreeCount[cat] < 10;
+    if (!subscribed && isFree) catFreeCount[cat]++;
     return {
       id:       a.id,
       headline: a.headline,
