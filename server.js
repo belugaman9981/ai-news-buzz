@@ -8,7 +8,7 @@ const cron        = require('node-cron');
 const RSSParser   = require('rss-parser');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Stripe      = require('stripe');
-const { Resend }  = require('resend');
+const nodemailer  = require('nodemailer');
 const bcrypt      = require('bcryptjs');
 const jwt         = require('jsonwebtoken');
 const path        = require('path');
@@ -33,8 +33,14 @@ if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not se
 const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }) : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM   = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+if (!process.env.GMAIL_APP_PASSWORD) { console.warn('⚠ GMAIL_APP_PASSWORD not set — emails disabled'); }
+const mailer = process.env.GMAIL_APP_PASSWORD
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: 'kidsaibuzz@gmail.com', pass: process.env.GMAIL_APP_PASSWORD }
+    })
+  : null;
+const FROM   = 'kidsaibuzz@gmail.com';
 const parser = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
 const axios  = require('axios');
 
@@ -209,12 +215,14 @@ async function scrapeAllFeeds() {
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  // only rewrite first 48 fresh articles per refresh — pool grows over time
-  const toRewrite = rawArticles.slice(0, 48);
+  // only rewrite first 24 fresh articles per refresh to stay within free-tier daily quota
+  const toRewrite = rawArticles.slice(0, 24);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
   const BATCH=3; const results=[];
+  let dailyQuotaExhausted = false;
 
   for(let i=0;i<toRewrite.length;i+=BATCH){
+    if(dailyQuotaExhausted) break;
     const batch=toRewrite.slice(i,i+BATCH);
     const startId=i+1;
     const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Content:\n'+a.body.slice(0,1200) : 'No content'}`).join('\n\n---\n\n');
@@ -262,18 +270,35 @@ CRITICAL rules:
           results.push({ id: Date.now()+r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.body||''), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
         }
         console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
+        // small delay between successful batches to stay within per-minute quota
+        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,5000));
         break; // success
       } catch(err) {
-        console.warn(`   ⚠ Batch ${Math.floor(i/BATCH)+1} attempt ${attempt+1} failed: ${err.message}`);
+        const msg = err.message || '';
+        const batchNum = Math.floor(i/BATCH)+1;
+        console.warn(`   ⚠ Batch ${batchNum} attempt ${attempt+1} failed: ${msg.slice(0,120)}`);
+
+        // if daily quota is exhausted, stop all further batches immediately
+        if(msg.includes('PerDay') || (msg.includes('limit: 0') && msg.includes('Per'))){
+          console.warn('   ✖ Daily Gemini quota exhausted — skipping remaining batches');
+          dailyQuotaExhausted = true;
+          break;
+        }
+
         if(attempt===2){
-          // final fallback
+          // final fallback — use raw content
           for(const a of batch){
             results.push({ id:Date.now()+Math.random(), headline:a.title, category:detectCategory(a.title,a.body||''), source:a.source, link:a.link, pubDate:a.pubDate,
               levels:{ young:{summary:a.title,full:a.body?.slice(0,400)||a.title,wow:'Scientists made a cool discovery!'}, middle:{summary:a.title,full:a.body?.slice(0,600)||a.title,wow:'Researchers worked hard on this project.'}, older:{summary:a.title,full:a.body?.slice(0,800)||a.title,wow:'This represents a significant technical achievement.'} }
             });
           }
+        } else {
+          // extract retry delay from 429 response (Google sends it in the error message)
+          const delayMatch = msg.match(/retry in (\d+(?:\.\d+)?)s/i);
+          const waitMs = delayMatch ? Math.min(Math.ceil(parseFloat(delayMatch[1])) * 1000, 60000) : 5000;
+          console.warn(`   ⏳ Waiting ${waitMs/1000}s before retry...`);
+          await new Promise(r=>setTimeout(r,waitMs));
         }
-        await new Promise(r=>setTimeout(r,2000)); // wait 2s before retry
       }
     }
   }
@@ -358,10 +383,10 @@ function isSubscribed(userId) {
    EMAIL HELPERS
 ═══════════════════════════════════════════════ */
 async function sendWelcomeEmail(email) {
-  if (!resend) return;
+  if (!mailer) { console.warn('⚠ sendWelcomeEmail: Gmail not configured, skipping.'); return; }
   try {
-    await resend.emails.send({
-      from: FROM,
+    await mailer.sendMail({
+      from: '"Kids AI Buzz" <kidsaibuzz@gmail.com>',
       to: email,
       subject: '🚀 Welcome to Kids AI Buzz!',
       html: `
@@ -389,7 +414,7 @@ async function sendWelcomeEmail(email) {
 }
 
 async function sendWeeklyDigest() {
-  if (!resend) return;
+  if (!mailer) { console.warn('⚠ sendWeeklyDigest: Gmail not configured, skipping.'); return; }
   const subscribers = db.get('newsletter').value() || [];
   if (!subscribers.length) return;
 
@@ -409,8 +434,8 @@ async function sendWeeklyDigest() {
 
   for (const sub of subscribers) {
     try {
-      await resend.emails.send({
-        from: FROM,
+      await mailer.sendMail({
+        from: '"Kids AI Buzz" <kidsaibuzz@gmail.com>',
         to: sub.email,
         subject: `🤖 This week in AI — Kids AI Buzz`,
         html: `
@@ -427,9 +452,10 @@ async function sendWeeklyDigest() {
             </p>
           </div>`
       });
+      console.log(`📧 Digest sent to ${sub.email}`);
     } catch(e) { console.warn(`⚠ Digest failed for ${sub.email}:`, e.message); }
   }
-  console.log(`📧 Weekly digest sent to ${subscribers.length} subscribers`);
+  console.log(`📧 Weekly digest attempted for ${subscribers.length} subscribers`);
 }
 
 /* ═══════════════════════════════════════════════
