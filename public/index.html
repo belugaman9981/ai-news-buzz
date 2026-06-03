@@ -1044,7 +1044,9 @@ function openArticle(i){
   document.getElementById('artTitle').textContent = decodeHtml(a.headline);
   const bodyEl = document.getElementById('artBody');
   const fullText = decodeHtml(a.full || a.summary);
-  bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('');
+  bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('') + '<div id="explainHint" style="font-size:12px;color:var(--muted);margin-top:1rem;text-align:center;opacity:.7">💡 Highlight any word for a kid-friendly explanation</div><div id="explainPopup" style="display:none;margin-top:1rem;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px" id="explainWord"></div><div style="font-size:15px;color:var(--text);line-height:1.6;font-weight:600" id="explainDef">Thinking...</div><button onclick="document.getElementById('explainPopup').style.display='none'" style="margin-top:10px;font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;">✕ close</button></div>';
+  document.getElementById('artBody').addEventListener('mouseup', handleExplain);
+  document.getElementById('artBody').addEventListener('touchend', () => setTimeout(handleExplain, 200));
   document.getElementById('artWow').textContent = decodeHtml(a.wow);
   currentArticleTitle = a.headline;
   document.getElementById('artOverlay').classList.add('open');
@@ -1374,6 +1376,37 @@ updateStreak();
 // register service worker for PWA
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('/sw.js').then(()=>console.log('SW registered')).catch(()=>{});
+}
+
+async function handleExplain() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+  const word = sel.toString().trim().replace(/[^a-zA-Z\-]/g, '');
+  if (!word || word.length < 2 || word.length > 40) return;
+  sel.removeAllRanges();
+  const popup = document.getElementById('explainPopup');
+  const wordEl = document.getElementById('explainWord');
+  const defEl = document.getElementById('explainDef');
+  if (!popup) return;
+  wordEl.textContent = word;
+  defEl.textContent = 'Thinking...';
+  popup.style.display = 'block';
+  const hint = document.getElementById('explainHint');
+  if (hint) hint.style.display = 'none';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You explain words to kids aged 8-12 reading an AI news article. Give a single short, fun explanation in 1-2 sentences max. Use simple words. No bullet points. Just explain it directly like talking to a curious kid. Never start with the word itself.',
+        messages: [{ role: 'user', content: 'Explain this word simply for a kid reading an AI news article: "' + word + '"' }]
+      })
+    });
+    const data = await res.json();
+    defEl.textContent = data?.content?.[0]?.text || "Hmm, not sure about that one!";
+  } catch(e) { defEl.textContent = 'Could not load definition right now.'; }
 }
 </script>
 </body>
