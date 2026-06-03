@@ -709,6 +709,26 @@ app.post('/api/admin/digest', async (req, res) => {
   sendWeeklyDigest();
 });
 
+/* ── POST /api/admin/test-email ── */
+app.post('/api/admin/test-email', async (req, res) => {
+  if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  const to = req.body?.to;
+  if (!to || !to.includes('@')) return res.status(400).json({ error: 'Provide a "to" email address' });
+  if (!mailer) return res.status(500).json({ error: 'Mailer not configured — GMAIL_APP_PASSWORD missing' });
+  try {
+    await mailer.sendMail({
+      from: `"Kids AI Buzz" <${FROM}>`,
+      to,
+      subject: '✅ Test Email from Kids AI Buzz',
+      html: `<p>Hey! If you're reading this, Nodemailer + Gmail is working correctly. 🎉</p>
+             <p>Sent at: ${new Date().toISOString()}</p>`
+    });
+    res.json({ ok: true, message: `Test email sent to ${to}` });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 /* ── GET /robots.txt ── */
 app.get('/robots.txt', (req, res) => {
   const base = process.env.APP_URL || 'https://ai-news-buzz.onrender.com';
