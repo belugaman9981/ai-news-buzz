@@ -893,12 +893,14 @@ app.listen(PORT, async () => {
   console.log(`💳 Stripe enabled: ${!!process.env.STRIPE_SECRET_KEY}`);
   console.log(`📡 ${RSS_FEEDS.length} RSS feeds | 🔄 Cron: ${REFRESH_CRON}\n`);
 
-  // only scrape on startup if cache is empty or older than 2 hours
+  // only refresh on startup if cache exists and is stale — never on a fresh deploy
   const cacheAge = cache.lastUpdated ? (Date.now() - new Date(cache.lastUpdated)) : Infinity;
   const TWO_HOURS = 2 * 60 * 60 * 1000;
-  if (cache.articles.length === 0 || cacheAge > TWO_HOURS) {
-    console.log('🔄 Cache is stale or empty — refreshing...');
+  if (cache.articles.length > 0 && cacheAge > TWO_HOURS) {
+    console.log('🔄 Cache is stale — refreshing...');
     await refreshNews();
+  } else if (cache.articles.length === 0) {
+    console.log('⏳ No cache on disk — waiting for first cron tick to refresh');
   } else {
     console.log(`✅ Using cached articles (${cache.articles.length} articles, ${Math.round(cacheAge/60000)}m old)`);
   }
