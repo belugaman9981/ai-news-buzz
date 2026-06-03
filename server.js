@@ -430,6 +430,89 @@ async function sendWelcomeEmail(email) {
   } catch(e) { console.warn('⚠ Welcome email failed:', e.message); }
 }
 
+async function sendSignupWelcomeEmail(email) {
+  if (!mailer) { console.warn('⚠ sendSignupWelcomeEmail: Gmail not configured, skipping.'); return; }
+  try {
+    await mailer.sendMail({
+      from: `"Kids AI Buzz" <${FROM}>`,
+      to: email,
+      subject: '👋 Welcome to Kids AI Buzz!',
+      html: `
+        <div style="font-family:sans-serif;max-width:580px;margin:0 auto;padding:2rem;background:#fff">
+
+          <div style="text-align:center;margin-bottom:2rem">
+            <h1 style="color:#7C6FF7;font-size:32px;margin:0">Kids AI Buzz 🤖</h1>
+            <p style="color:#888;font-size:14px;margin-top:6px">AI news made for kids</p>
+          </div>
+
+          <p style="font-size:16px;color:#333;line-height:1.7">
+            Hey there! 👋 Welcome to <strong>Kids AI Buzz</strong> — your account is all set up and ready to go!
+          </p>
+
+          <div style="background:#F4F3FF;border-radius:16px;padding:1.5rem;margin:1.5rem 0">
+            <h2 style="color:#7C6FF7;font-size:18px;margin:0 0 1rem">Here's what you can do 🎉</h2>
+            <table style="width:100%;border-collapse:collapse">
+              <tr>
+                <td style="padding:8px 0;vertical-align:top;width:32px;font-size:20px">📰</td>
+                <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
+                  <strong>Read AI news daily</strong> — fresh stories every few hours, pulled from the web
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;vertical-align:top;font-size:20px">🎓</td>
+                <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
+                  <strong>3 reading levels</strong> — Young Explorer, Middle School, or Older Kid — pick what fits you
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;vertical-align:top;font-size:20px">🔍</td>
+                <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
+                  <strong>Search & filter</strong> — find stories by topic like Robots, Art, Science, and more
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;vertical-align:top;font-size:20px">🔥</td>
+                <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
+                  <strong>Streaks & badges</strong> — keep reading every day to build your streak and unlock badges
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;vertical-align:top;font-size:20px">📧</td>
+                <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
+                  <strong>Weekly digest</strong> — subscribe to get the top 5 stories sent to your inbox every week
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;vertical-align:top;font-size:20px">⭐</td>
+                <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
+                  <strong>Go Premium</strong> — unlock all stories at every reading level for just $3.99/month
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="text-align:center;margin:2rem 0">
+            <a href="https://ai-news-buzz.onrender.com"
+               style="display:inline-block;background:#7C6FF7;color:#fff;padding:14px 36px;border-radius:99px;text-decoration:none;font-weight:bold;font-size:16px">
+              Start reading now →
+            </a>
+          </div>
+
+          <p style="font-size:14px;color:#666;line-height:1.7">
+            AI is changing the world fast — and we think every kid should know about it. Welcome aboard! 🚀
+          </p>
+
+          <hr style="border:none;border-top:1px solid #eee;margin:2rem 0">
+          <p style="font-size:12px;color:#aaa;text-align:center">
+            You're receiving this because you created an account at Kids AI Buzz.<br>
+            <a href="https://ai-news-buzz.onrender.com/unsubscribe?email=${encodeURIComponent(email)}" style="color:#aaa">Unsubscribe</a>
+          </p>
+        </div>`
+    });
+    console.log(`📧 Signup welcome email sent to ${email}`);
+  } catch(e) { console.warn('⚠ Signup welcome email failed:', e.message); }
+}
+
 async function sendPaidWelcomeEmail(email) {
   if (!mailer) { console.warn('⚠ sendPaidWelcomeEmail: Gmail not configured, skipping.'); return; }
   try {
@@ -541,6 +624,7 @@ app.post('/api/auth/signup', async (req, res) => {
     subscriptionId: null, createdAt: new Date().toISOString()
   }).write();
 
+  sendSignupWelcomeEmail(email.toLowerCase());
   res.json({ token: signToken(id), email: email.toLowerCase(), subscribed: false });
 });
 
