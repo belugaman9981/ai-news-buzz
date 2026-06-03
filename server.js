@@ -430,10 +430,41 @@ async function sendWelcomeEmail(email) {
   } catch(e) { console.warn('⚠ Welcome email failed:', e.message); }
 }
 
+async function sendPaidWelcomeEmail(email) {
+  if (!mailer) { console.warn('⚠ sendPaidWelcomeEmail: Gmail not configured, skipping.'); return; }
+  try {
+    await mailer.sendMail({
+      from: `"Kids AI Buzz" <${FROM}>`,
+      to: email,
+      subject: '🎉 You\'re subscribed to Kids AI Buzz!',
+      html: `
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:2rem">
+          <h1 style="color:#7C6FF7;font-size:28px">You're in! 🚀</h1>
+          <p style="font-size:16px;color:#444;line-height:1.6">
+            Thanks for subscribing to <strong>Kids AI Buzz</strong>! You now have full access to all AI news stories at every reading level.
+          </p>
+          <p style="font-size:16px;color:#444;line-height:1.6">
+            Every week we'll also send you a digest of the top AI stories — explained in a fun way kids actually understand. 🤖🎨🚀
+          </p>
+          <a href="https://ai-news-buzz.onrender.com"
+             style="display:inline-block;background:#7C6FF7;color:#fff;padding:12px 28px;border-radius:99px;text-decoration:none;font-weight:bold;font-size:16px;margin-top:1rem">
+            Start reading →
+          </a>
+          <p style="font-size:13px;color:#999;margin-top:2rem">
+            You're receiving this because you subscribed at Kids AI Buzz. Manage your subscription at any time from your account.
+          </p>
+        </div>`
+    });
+    console.log(`📧 Paid welcome email sent to ${email}`);
+  } catch(e) { console.warn('⚠ Paid welcome email failed:', e.message); }
+}
+
 async function sendWeeklyDigest() {
   if (!mailer) { console.warn('⚠ sendWeeklyDigest: Gmail not configured, skipping.'); return; }
-  const subscribers = db.get('newsletter').value() || [];
-  if (!subscribers.length) return;
+  const newsletterSubs = (db.get('newsletter').value() || []).map(s => s.email);
+  const paidSubs = (db.get('users').filter({ subscriptionStatus: 'active' }).value() || []).map(u => u.email);
+  const allEmails = [...new Set([...newsletterSubs, ...paidSubs])];
+  if (!allEmails.length) return;
 
   const top5 = cache.articles
     .filter(a => a.levels?.middle?.summary)
@@ -449,11 +480,11 @@ async function sendWeeklyDigest() {
       <p style="margin:0;color:#666;font-size:14px;line-height:1.6">${a.levels.middle.summary}</p>
     </div>`).join('');
 
-  for (const sub of subscribers) {
+  for (const email of allEmails) {
     try {
       await mailer.sendMail({
         from: '"Kids AI Buzz" <kidsaibuzz@gmail.com>',
-        to: sub.email,
+        to: email,
         subject: `🤖 This week in AI — Kids AI Buzz`,
         html: `
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:2rem">
@@ -465,14 +496,14 @@ async function sendWeeklyDigest() {
               Read all stories →
             </a>
             <p style="font-size:13px;color:#999;margin-top:2rem">
-              <a href="https://ai-news-buzz.onrender.com/unsubscribe?email=${encodeURIComponent(sub.email)}" style="color:#999">Unsubscribe</a>
+              <a href="https://ai-news-buzz.onrender.com/unsubscribe?email=${encodeURIComponent(email)}" style="color:#999">Unsubscribe</a>
             </p>
           </div>`
       });
-      console.log(`📧 Digest sent to ${sub.email}`);
-    } catch(e) { console.warn(`⚠ Digest failed for ${sub.email}:`, e.message); }
+      console.log(`📧 Digest sent to ${email}`);
+    } catch(e) { console.warn(`⚠ Digest failed for ${email}:`, e.message); }
   }
-  console.log(`📧 Weekly digest attempted for ${subscribers.length} subscribers`);
+  console.log(`📧 Weekly digest attempted for ${allEmails.length} recipients`);
 }
 
 /* ═══════════════════════════════════════════════
@@ -594,7 +625,11 @@ app.post('/api/stripe/webhook', (req, res) => {
   switch(event.type) {
     case 'checkout.session.completed': {
       const uid = session.metadata?.userId;
-      if(uid) db.get('users').find({id:uid}).assign({ stripeCustomerId: customerId, subscriptionStatus:'active', subscriptionId: session.subscription }).write();
+      if(uid) {
+        db.get('users').find({id:uid}).assign({ stripeCustomerId: customerId, subscriptionStatus:'active', subscriptionId: session.subscription }).write();
+        const paidUser = db.get('users').find({id:uid}).value();
+        if(paidUser?.email) sendPaidWelcomeEmail(paidUser.email);
+      }
       break;
     }
     case 'customer.subscription.updated':
