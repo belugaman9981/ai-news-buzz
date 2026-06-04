@@ -22,7 +22,7 @@ const CACHE_FILE  = path.join(__dirname, 'articles-cache.json');
 ═══════════════════════════════════════════════ */
 const PORT          = process.env.PORT          || 3000;
 const ADMIN_SECRET  = process.env.ADMIN_SECRET  || 'changeme';
-const REFRESH_CRON  = process.env.REFRESH_CRON  || '*/30 * * * *';
+const REFRESH_CRON  = process.env.REFRESH_CRON  || '0 6 * * *';
 const JWT_SECRET    = process.env.JWT_SECRET    || 'change-this-jwt-secret';
 const APP_URL       = process.env.APP_URL       || `http://localhost:${PORT}`;
 const PRICE_ID      = process.env.STRIPE_PRICE_ID;
@@ -895,7 +895,7 @@ app.listen(PORT, async () => {
 
   // only refresh on startup if cache exists and is stale — never on a fresh deploy
   const cacheAge = cache.lastUpdated ? (Date.now() - new Date(cache.lastUpdated)) : Infinity;
-  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const TWO_HOURS = 24 * 60 * 60 * 1000;
   if (cache.articles.length > 0 && cacheAge > TWO_HOURS) {
     console.log('🔄 Cache is stale — refreshing...');
     await refreshNews();
