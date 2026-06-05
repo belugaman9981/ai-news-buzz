@@ -232,8 +232,8 @@ async function scrapeAllFeeds() {
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  // only rewrite first 24 fresh articles per refresh to stay within free-tier daily quota
-  const toRewrite = rawArticles.slice(0, 24);
+  // only rewrite first 12 fresh articles per refresh to stay within free-tier daily quota
+  const toRewrite = rawArticles.slice(0, 12);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
   const BATCH=3; const results=[];
   let dailyQuotaExhausted = false;
@@ -288,7 +288,7 @@ CRITICAL rules:
         }
         console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
         // small delay between successful batches to stay within per-minute quota
-        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,5000));
+        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,10000));
         break; // success
       } catch(err) {
         const msg = err.message || '';
