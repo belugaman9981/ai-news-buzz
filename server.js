@@ -895,8 +895,8 @@ app.listen(PORT, async () => {
 
   // only refresh on startup if cache exists and is stale — never on a fresh deploy
   const cacheAge = cache.lastUpdated ? (Date.now() - new Date(cache.lastUpdated)) : Infinity;
-  const TWO_HOURS = 24 * 60 * 60 * 1000;
-  if (cache.articles.length > 0 && cacheAge > TWO_HOURS) {
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  if (cache.articles.length > 0 && cacheAge > TWENTY_FOUR_HOURS) {
     console.log('🔄 Cache is stale — refreshing...');
     await refreshNews();
   } else if (cache.articles.length === 0) {
