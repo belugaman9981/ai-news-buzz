@@ -74,13 +74,10 @@ const RSS_FEEDS = [
   { url: 'https://rss.arxiv.org/rss/q-bio',                                    source: 'ArXiv Biology' },
   { url: 'https://rss.arxiv.org/rss/physics',                                  source: 'ArXiv Physics' },
   // Animals / Nature
-  { url: 'https://www.eurekalert.org/rss/ecology.xml',                         source: 'EurekAlert Eco'},
   { url: 'https://www.eurekalert.org/rss/biology.xml',                         source: 'EurekAlert Bio'},
   // Gaming
   { url: 'https://www.pcgamer.com/rss/',                                        source: 'PC Gamer'      },
   { url: 'https://www.eurogamer.net/?format=rss',                              source: 'Eurogamer'     },
-  // AI Art / Creativity
-  { url: 'https://www.adobe.com/blog/feed',                                    source: 'Adobe Blog'    },
   // General Tech backup
   { url: 'https://feeds.arstechnica.com/arstechnica/index',                    source: 'Ars Technica'  },
   { url: 'https://www.theguardian.com/technology/rss',                         source: 'Guardian Tech' },
@@ -296,7 +293,10 @@ CRITICAL rules:
     for(let attempt=0; attempt<3; attempt++){
       try {
         if(!gemini) throw new Error('Gemini not configured');
-        const result = await gemini.generateContent(prompt);
+        const result = await Promise.race([
+          gemini.generateContent(prompt),
+          new Promise((_,rej) => setTimeout(() => rej(new Error('Gemini timeout after 60s')), 60000)),
+        ]);
         let text = result.response.text();
         text = text.split('\n').filter(l => !l.startsWith('```')).join('\n').trim();
         const s=text.indexOf('['),e=text.lastIndexOf(']');
@@ -329,7 +329,7 @@ CRITICAL rules:
           }
         } else {
           const delayMatch = msg.match(/retry in (\d+(?:\.\d+)?)s/i);
-          const waitMs = delayMatch ? Math.min(Math.ceil(parseFloat(delayMatch[1])) * 1000, 60000) : 5000;
+          const waitMs = delayMatch ? Math.min(Math.ceil(parseFloat(delayMatch[1])) * 1000, 60000) : 15000;
           console.warn(`   ⏳ Waiting ${waitMs/1000}s before retry...`);
           await new Promise(r=>setTimeout(r,waitMs));
         }
