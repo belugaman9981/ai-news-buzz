@@ -895,6 +895,15 @@ async function loadNews(reset=true){
     isSubscribed = data.subscribed;
     hasMorePages = data.hasMore;
 
+    // If no articles yet, show a helpful message instead of a blank grid
+    if(allArticles.length === 0){
+      const msg = data.isRefreshing
+        ? `<div class="state"><span class="state-ico">📡</span><h2>Fetching stories...</h2><p>We're pulling in the latest AI news right now. This can take up to 2 minutes on a fresh start — hang tight!</p><button class="retry" onclick="setTimeout(()=>loadNews(),8000);this.disabled=true;this.textContent='Checking in 8s...'">Check again</button></div>`
+        : `<div class="state"><span class="state-ico">😴</span><h2>No stories yet</h2><p>The news refresh hasn't run yet today. Check back soon, or ask your admin to trigger a refresh!</p><button class="retry" onclick="loadNews()">Try again</button></div>`;
+      document.getElementById('content').innerHTML = msg;
+      return;
+    }
+
     populateMissing();
     if(!isSubscribed) document.getElementById('countdownSec').style.display='block';
 

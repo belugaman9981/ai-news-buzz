@@ -41,43 +41,49 @@ const mailer = process.env.GMAIL_APP_PASSWORD
     })
   : null;
 const FROM   = 'kidsaibuzz@gmail.com';
-const parser = new RSSParser({ timeout: 8000, headers: { 'User-Agent': 'KidsAIBuzz/1.0' } });
+const parser = new RSSParser({
+  timeout: 10000,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0; +https://ai-news-buzz.onrender.com)',
+    'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+  },
+});
 const axios  = require('axios');
 
 /* ═══════════════════════════════════════════════
    SOURCES  — HN Algolia + RSS fallbacks
 ═══════════════════════════════════════════════ */
 const RSS_FEEDS = [
-  // General AI
-  { url: 'https://venturebeat.com/category/ai/feed/',                          source: 'VentureBeat'   },
-  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',  source: 'The Verge'     },
-  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/',      source: 'TechCrunch'    },
-  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',           source: 'Ars Technica'  },
-  { url: 'https://www.wired.com/feed/tag/ai/latest/rss',                       source: 'Wired'         },
-  { url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',  source: 'IEEE Spectrum' },
-  { url: 'https://www.artificialintelligence-news.com/feed/',                  source: 'AI News'       },
-  { url: 'https://syncedreview.com/feed/',                                     source: 'Synced Review' },
-  // Robots specifically
-  { url: 'https://spectrum.ieee.org/feeds/topic/robotics.rss',                 source: 'IEEE Robotics' },
-  { url: 'https://techcrunch.com/category/robotics/feed/',                     source: 'TC Robotics'   },
-  { url: 'https://www.therobotreport.com/feed/',                               source: 'Robot Report'  },
-  // AI Art specifically
-  { url: 'https://www.creativebloq.com/feeds/all',                             source: 'Creative Bloq' },
-  { url: 'https://aiartists.org/feed',                                         source: 'AI Artists'    },
-  { url: 'https://techcrunch.com/category/media-entertainment/feed/',          source: 'TC Media'      },
-  // Science specifically
-  { url: 'https://www.newscientist.com/feed/home/',                            source: 'New Scientist' },
-  { url: 'https://feeds.feedburner.com/sciencedaily',                          source: 'Science Daily' },
-  { url: 'https://phys.org/rss-feed/breaking/',                                source: 'Phys.org'      },
-  // Gaming
-  { url: 'https://www.gamespot.com/feeds/mashup/',                             source: 'GameSpot'      },
-  { url: 'https://kotaku.com/rss',                                              source: 'Kotaku'        },
-  // Space
-  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss',                     source: 'NASA'          },
-  { url: 'https://feeds.feedburner.com/spacecom',                              source: 'Space.com'     },
+  // General AI / Tech — open feeds
+  { url: 'https://rss.arxiv.org/rss/cs.AI',                                    source: 'ArXiv AI'      },
+  { url: 'https://rss.arxiv.org/rss/cs.LG',                                    source: 'ArXiv ML'      },
+  { url: 'https://rss.arxiv.org/rss/cs.CV',                                    source: 'ArXiv Vision'  },
+  { url: 'https://blog.research.google/feeds/posts/default',                   source: 'Google AI Blog'},
+  { url: 'https://openai.com/blog/rss.xml',                                    source: 'OpenAI Blog'   },
+  { url: 'https://www.deepmind.com/blog/rss.xml',                              source: 'DeepMind'      },
+  { url: 'https://huggingface.co/blog/feed.xml',                               source: 'HuggingFace'   },
+  { url: 'https://towardsdatascience.com/feed',                                source: 'Towards DS'    },
+  { url: 'https://machinelearningmastery.com/feed/',                           source: 'ML Mastery'    },
+  // Robots
+  { url: 'https://rss.arxiv.org/rss/cs.RO',                                    source: 'ArXiv Robots'  },
+  { url: 'https://spectrum.ieee.org/feeds/blog/automaton.rss',                 source: 'IEEE Automaton'},
+  // Space / Science
+  { url: 'https://rss.arxiv.org/rss/astro-ph.EP',                              source: 'ArXiv Space'   },
+  { url: 'https://www.nasa.gov/feed/',                                          source: 'NASA'          },
+  { url: 'https://earthobservatory.nasa.gov/feeds/earth-observatory.rss',      source: 'NASA Earth'    },
+  { url: 'https://rss.arxiv.org/rss/q-bio',                                    source: 'ArXiv Biology' },
+  { url: 'https://rss.arxiv.org/rss/physics',                                  source: 'ArXiv Physics' },
   // Animals / Nature
-  { url: 'https://www.nationalgeographic.com/rss',                             source: 'Nat Geo'       },
-  { url: 'https://www.sciencenews.org/feed',                                   source: 'Science News'  },
+  { url: 'https://www.eurekalert.org/rss/ecology.xml',                         source: 'EurekAlert Eco'},
+  { url: 'https://www.eurekalert.org/rss/biology.xml',                         source: 'EurekAlert Bio'},
+  // Gaming
+  { url: 'https://www.pcgamer.com/rss/',                                        source: 'PC Gamer'      },
+  { url: 'https://www.eurogamer.net/?format=rss',                              source: 'Eurogamer'     },
+  // AI Art / Creativity
+  { url: 'https://www.adobe.com/blog/feed',                                    source: 'Adobe Blog'    },
+  // General Tech backup
+  { url: 'https://feeds.arstechnica.com/arstechnica/index',                    source: 'Ars Technica'  },
+  { url: 'https://www.theguardian.com/technology/rss',                         source: 'Guardian Tech' },
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -228,6 +234,25 @@ async function scrapeAllFeeds() {
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
+
+  // If Gemini is not configured, serve raw articles directly so the site is never blank
+  if (!gemini) {
+    console.log('📰 No Gemini key — serving raw articles directly');
+    return rawArticles.slice(0, 60).map(a => ({
+      id: Date.now() + Math.random(),
+      headline: a.title,
+      category: detectCategory(a.title, a.body || a.snippet || ''),
+      source: a.source,
+      link: a.link,
+      pubDate: a.pubDate,
+      levels: {
+        young:  { summary: (a.snippet || a.body || a.title).slice(0, 200), full: a.body || a.snippet || a.title, wow: 'Scientists are making amazing discoveries every day!' },
+        middle: { summary: (a.snippet || a.body || a.title).slice(0, 300), full: a.body || a.snippet || a.title, wow: 'Researchers around the world are working on this.' },
+        older:  { summary: (a.snippet || a.body || a.title).slice(0, 400), full: a.body || a.snippet || a.title, wow: 'This represents a significant development in the field.' },
+      },
+    }));
+  }
+
   // only rewrite first 6 articles per refresh — stays well within Gemini free tier (25 RPD)
   const toRewrite = rawArticles.slice(0, 6);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
@@ -321,6 +346,14 @@ async function refreshNews() {
   console.log('\n🔄 Refresh started —',new Date().toLocaleTimeString());
   try{
     const raw      = await scrapeAllFeeds();
+
+    // If scraping returned nothing (all feeds blocked), keep old cache rather than going blank
+    if (!raw || raw.length === 0) {
+      console.warn('⚠ Scraping returned 0 articles — keeping existing cache intact');
+      cache.isRefreshing = false;
+      return;
+    }
+
     const rewritten = await rewriteForKids(raw);
     if(!rewritten || !rewritten.length){ console.warn('⚠ No articles rewritten'); cache.isRefreshing=false; return; }
 
