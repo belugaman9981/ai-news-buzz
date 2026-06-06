@@ -145,7 +145,6 @@ async function fetchHNStories() {
       'robot drone autonomous vehicle',
       'AI medical health diagnosis',
     ];
-    // fetch all queries in parallel
     const results = await Promise.all(
       queries.map(q =>
         axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=10&numericFilters=points>20`, { timeout: 5000 })
@@ -184,7 +183,6 @@ async function scrapeAllFeeds() {
   const rss = rssResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
   const all = [...hn, ...rss].filter(a => a.title?.length > 15);
 
-  // deduplicate by URL (strip query params) and by title prefix
   const seenUrls = new Set(), seenTitles = new Set(), dedup = [];
   for (const item of all) {
     const urlKey = item.link ? (() => { try { const u = new URL(item.link); return u.hostname + u.pathname; } catch { return item.link; } })() : '';
@@ -194,7 +192,6 @@ async function scrapeAllFeeds() {
     seenTitles.add(titleKey);
     dedup.push(item);
   }
-  // semantic dedup — drop articles that cover the same subject as an earlier one
   const STOP_WORDS = new Set(['a','an','the','is','are','was','were','has','have','had','be','been','being','in','on','at','to','for','of','and','or','but','with','by','from','as','it','its','this','that','how','why','what','when','where','who','will','can','could','would','should','may','might','new','says','say','said','use','uses','used','ai','after','before','over','more','than','about','into','all','up','out','one','two','three','first','just','not','their','they','its','our','your','his','her']);
   function titleKeywords(t) {
     return new Set(t.toLowerCase().replace(/[^a-z0-9 ]/g,'').split(/\s+/).filter(w => w.length > 3 && !STOP_WORDS.has(w)));
@@ -212,10 +209,9 @@ async function scrapeAllFeeds() {
   }
 
   semDedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = semDedup.slice(0, 200); // grab top 200 to ensure more per category
+  const top = semDedup.slice(0, 200);
   console.log(`   → ${top.length} stories found`);
 
-  // fetch all bodies in parallel
   console.log('   → Fetching bodies in parallel...');
   const bodies = await Promise.all(
     top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
@@ -232,8 +228,8 @@ async function scrapeAllFeeds() {
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
-  // only rewrite first 12 fresh articles per refresh to stay within free-tier daily quota
-  const toRewrite = rawArticles.slice(0, 12);
+  // only rewrite first 6 articles per refresh — stays well within Gemini free tier (25 RPD)
+  const toRewrite = rawArticles.slice(0, 6);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
   const BATCH=3; const results=[];
   let dailyQuotaExhausted = false;
@@ -277,7 +273,6 @@ CRITICAL rules:
         if(!gemini) throw new Error('Gemini not configured');
         const result = await gemini.generateContent(prompt);
         let text = result.response.text();
-        // strip markdown fences without using backticks in regex
         text = text.split('\n').filter(l => !l.startsWith('```')).join('\n').trim();
         const s=text.indexOf('['),e=text.lastIndexOf(']');
         if(s===-1||e===-1) throw new Error('No JSON array');
@@ -287,15 +282,14 @@ CRITICAL rules:
           results.push({ id: Date.now()+r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.body||''), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
         }
         console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
-        // small delay between successful batches to stay within per-minute quota
-        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,10000));
-        break; // success
+        // 15 second delay between batches to respect 5 RPM limit
+        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,15000));
+        break;
       } catch(err) {
         const msg = err.message || '';
         const batchNum = Math.floor(i/BATCH)+1;
         console.warn(`   ⚠ Batch ${batchNum} attempt ${attempt+1} failed: ${msg.slice(0,120)}`);
 
-        // if daily quota is exhausted, stop all further batches immediately
         if(msg.includes('PerDay') || (msg.includes('limit: 0') && msg.includes('Per'))){
           console.warn('   ✖ Daily Gemini quota exhausted — skipping remaining batches');
           dailyQuotaExhausted = true;
@@ -303,14 +297,12 @@ CRITICAL rules:
         }
 
         if(attempt===2){
-          // final fallback — use raw content
           for(const a of batch){
             results.push({ id:Date.now()+Math.random(), headline:a.title, category:detectCategory(a.title,a.body||''), source:a.source, link:a.link, pubDate:a.pubDate,
               levels:{ young:{summary:a.title,full:a.body?.slice(0,400)||a.title,wow:'Scientists made a cool discovery!'}, middle:{summary:a.title,full:a.body?.slice(0,600)||a.title,wow:'Researchers worked hard on this project.'}, older:{summary:a.title,full:a.body?.slice(0,800)||a.title,wow:'This represents a significant technical achievement.'} }
             });
           }
         } else {
-          // extract retry delay from 429 response (Google sends it in the error message)
           const delayMatch = msg.match(/retry in (\d+(?:\.\d+)?)s/i);
           const waitMs = delayMatch ? Math.min(Math.ceil(parseFloat(delayMatch[1])) * 1000, 60000) : 5000;
           console.warn(`   ⏳ Waiting ${waitMs/1000}s before retry...`);
@@ -332,7 +324,6 @@ async function refreshNews() {
     const rewritten = await rewriteForKids(raw);
     if(!rewritten || !rewritten.length){ console.warn('⚠ No articles rewritten'); cache.isRefreshing=false; return; }
 
-    // ensure 9 per category — group and pad
     const CATS = ['robots','art','science','gaming','animals','space','cool'];
     const byCategory = {};
     CATS.forEach(c => byCategory[c] = []);
@@ -342,8 +333,6 @@ async function refreshNews() {
       byCategory[c].push(a);
     }
 
-    // if any category has fewer than 9, fill from 'cool' overflow or recycle
-    // distribute overflow to emptiest categories first
     const sortedBySize = [...CATS].sort((a,b) => byCategory[a].length - byCategory[b].length);
     let overflow = rewritten.filter(a => byCategory[a.category]?.length > 12);
     for(const c of sortedBySize){
@@ -353,16 +342,14 @@ async function refreshNews() {
       }
     }
 
-    // flatten: 12 per category = 84 total
     const final = [];
     for(let i=0;i<12;i++){
       CATS.forEach(c => { if(byCategory[c][i]) final.push(byCategory[c][i]); });
     }
 
-    // merge with existing cache — keep old articles, add new ones at top
     const existingIds = new Set((cache.articles||[]).map(a=>a.id||a.headline));
     const brandNew = final.filter(a => !existingIds.has(a.id||a.headline));
-    const merged = [...brandNew, ...(cache.articles||[])].slice(0, 500); // keep up to 500 articles
+    const merged = [...brandNew, ...(cache.articles||[])].slice(0, 500);
 
     cache.articles    = merged;
     cache.lastUpdated = new Date();
@@ -439,23 +426,20 @@ async function sendSignupWelcomeEmail(email) {
       subject: '👋 Welcome to Kids AI Buzz!',
       html: `
         <div style="font-family:sans-serif;max-width:580px;margin:0 auto;padding:2rem;background:#fff">
-
           <div style="text-align:center;margin-bottom:2rem">
             <h1 style="color:#7C6FF7;font-size:32px;margin:0">Kids AI Buzz 🤖</h1>
             <p style="color:#888;font-size:14px;margin-top:6px">AI news made for kids</p>
           </div>
-
           <p style="font-size:16px;color:#333;line-height:1.7">
             Hey there! 👋 Welcome to <strong>Kids AI Buzz</strong> — your account is all set up and ready to go!
           </p>
-
           <div style="background:#F4F3FF;border-radius:16px;padding:1.5rem;margin:1.5rem 0">
             <h2 style="color:#7C6FF7;font-size:18px;margin:0 0 1rem">Here's what you can do 🎉</h2>
             <table style="width:100%;border-collapse:collapse">
               <tr>
                 <td style="padding:8px 0;vertical-align:top;width:32px;font-size:20px">📰</td>
                 <td style="padding:8px 0;color:#444;font-size:15px;line-height:1.5">
-                  <strong>Read AI news daily</strong> — fresh stories every few hours, pulled from the web
+                  <strong>Read AI news daily</strong> — fresh stories every day, pulled from the web
                 </td>
               </tr>
               <tr>
@@ -490,18 +474,15 @@ async function sendSignupWelcomeEmail(email) {
               </tr>
             </table>
           </div>
-
           <div style="text-align:center;margin:2rem 0">
             <a href="https://ai-news-buzz.onrender.com"
                style="display:inline-block;background:#7C6FF7;color:#fff;padding:14px 36px;border-radius:99px;text-decoration:none;font-weight:bold;font-size:16px">
               Start reading now →
             </a>
           </div>
-
           <p style="font-size:14px;color:#666;line-height:1.7">
             AI is changing the world fast — and we think every kid should know about it. Welcome aboard! 🚀
           </p>
-
           <hr style="border:none;border-top:1px solid #eee;margin:2rem 0">
           <p style="font-size:12px;color:#aaa;text-align:center">
             You're receiving this because you created an account at Kids AI Buzz.<br>
@@ -594,7 +575,6 @@ async function sendWeeklyDigest() {
 ═══════════════════════════════════════════════ */
 const app = express();
 
-// raw body for Stripe webhooks BEFORE json middleware
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
 app.set('trust proxy', 1);
@@ -607,7 +587,6 @@ app.use(express.static(path.join(__dirname,'public')));
 
 /* ─── AUTH ROUTES ─────────────────────────────── */
 
-// POST /api/auth/signup
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
@@ -628,7 +607,6 @@ app.post('/api/auth/signup', async (req, res) => {
   res.json({ token: signToken(id), email: email.toLowerCase(), subscribed: false });
 });
 
-// POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const user = db.get('users').find({ email: email?.toLowerCase() }).value();
@@ -640,7 +618,6 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ token: signToken(user.id), email: user.email, subscribed: user.subscriptionStatus === 'active' });
 });
 
-// GET /api/auth/me
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -649,7 +626,6 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 
 /* ─── STRIPE ROUTES ───────────────────────────── */
 
-// POST /api/stripe/checkout  — create checkout session
 app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const PROMO_COUPON_ID = process.env.STRIPE_PROMO_COUPON_ID;
@@ -678,7 +654,6 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/stripe/portal  — manage/cancel subscription
 app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const user = db.get('users').find({ id: req.user.id }).value();
@@ -692,7 +667,6 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/stripe/webhook  — Stripe events
 app.post('/api/stripe/webhook', (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const sig = req.headers['stripe-signature'];
@@ -703,8 +677,6 @@ app.post('/api/stripe/webhook', (req, res) => {
 
   const session      = event.data.object;
   const customerId   = session.customer;
-  const userId       = session.metadata?.userId || session.client_reference_id;
-  const subStatus    = session.status;
 
   switch(event.type) {
     case 'checkout.session.completed': {
@@ -718,7 +690,7 @@ app.post('/api/stripe/webhook', (req, res) => {
     }
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
-      const status = event.data.object.status; // active, canceled, past_due, etc.
+      const status = event.data.object.status;
       const sub    = event.data.object;
       const user   = db.get('users').find({ stripeCustomerId: sub.customer }).value();
       if(user) db.get('users').find({id:user.id}).assign({ subscriptionStatus: status==='active'?'active':'canceled', subscriptionId: sub.id }).write();
@@ -740,7 +712,6 @@ app.get('/api/news', (req, res) => {
   const page     = Math.max(1, parseInt(req.query.page || '1'));
   const pageSize = 12;
 
-  // auth check
   let subscribed = false;
   const header = req.headers.authorization || '';
   const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -750,12 +721,10 @@ app.get('/api/news', (req, res) => {
 
   let articles = cache.articles;
 
-  // filter by category
   if(category !== 'all'){
     articles = articles.filter(a=>a.category===category);
   }
 
-  // Cap free articles at 6 per category; subscribers see everything
   const catFreeCount = {};
   const allShaped = articles.map((a, i) => {
     const cat = a.category || 'cool';
@@ -774,10 +743,8 @@ app.get('/api/news', (req, res) => {
     };
   });
 
-  // Always show free articles before locked ones
   allShaped.sort((a, b) => (a.locked ? 1 : 0) - (b.locked ? 1 : 0));
 
-  // paginate
   const start   = (page - 1) * pageSize;
   const sliced  = allShaped.slice(start, start + pageSize);
   const hasMore = start + pageSize < allShaped.length;
@@ -798,7 +765,6 @@ app.post('/api/admin/refresh', (req,res) => {
   res.json({ok:true,message:'Refresh started.'}); refreshNews();
 });
 
-/* ── POST /api/newsletter/subscribe ── */
 app.post('/api/newsletter/subscribe', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
@@ -811,7 +777,6 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
   res.json({ ok: true, message: 'Subscribed! Check your inbox.' });
 });
 
-/* ── GET /api/newsletter/unsubscribe ── */
 app.get('/unsubscribe', (req, res) => {
   const email = req.query.email;
   if (email) {
@@ -821,14 +786,12 @@ app.get('/unsubscribe', (req, res) => {
   res.send('<html><body style="font-family:sans-serif;text-align:center;padding:4rem"><h2>You\'ve been unsubscribed.</h2><p><a href="/">Back to Kids AI Buzz</a></p></body></html>');
 });
 
-/* ── POST /api/admin/digest ── (manual trigger) */
 app.post('/api/admin/digest', async (req, res) => {
   if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
   res.json({ ok: true, message: 'Digest sending...' });
   sendWeeklyDigest();
 });
 
-/* ── POST /api/admin/test-email ── */
 app.post('/api/admin/test-email', async (req, res) => {
   if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
   const to = req.body?.to;
@@ -848,22 +811,20 @@ app.post('/api/admin/test-email', async (req, res) => {
   }
 });
 
-/* ── GET /robots.txt ── */
 app.get('/robots.txt', (req, res) => {
   const base = process.env.APP_URL || 'https://ai-news-buzz.onrender.com';
   res.type('text/plain').send(
 `User-agent: *
 Allow: /
 
-Sitemap: ${base}/sitemap.xml` 
+Sitemap: ${base}/sitemap.xml`
   );
 });
 
-/* ── GET /sitemap.xml ── */
 app.get('/sitemap.xml', (req, res) => {
   const base = process.env.APP_URL || 'https://ai-news-buzz.onrender.com';
   const urls = [
-    { loc: base, priority: '1.0', changefreq: 'hourly' },
+    { loc: base, priority: '1.0', changefreq: 'daily' },
     { loc: `${base}/#pricing`, priority: '0.8', changefreq: 'monthly' },
     ...cache.articles.map(a => ({
       loc: `${base}/?article=${encodeURIComponent(a.headline||'')}`,
@@ -893,14 +854,16 @@ app.listen(PORT, async () => {
   console.log(`💳 Stripe enabled: ${!!process.env.STRIPE_SECRET_KEY}`);
   console.log(`📡 ${RSS_FEEDS.length} RSS feeds | 🔄 Cron: ${REFRESH_CRON}\n`);
 
-  // only refresh on startup if cache exists and is stale — never on a fresh deploy
   const cacheAge = cache.lastUpdated ? (Date.now() - new Date(cache.lastUpdated)) : Infinity;
   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
   if (cache.articles.length > 0 && cacheAge > TWENTY_FOUR_HOURS) {
     console.log('🔄 Cache is stale — refreshing...');
-    await refreshNews();
+    refreshNews();
   } else if (cache.articles.length === 0) {
-    console.log('⏳ No cache on disk — waiting for first cron tick to refresh');
+    // Fresh deploy — start fetching immediately so the site is never empty
+    console.log('🆕 No cache found — fetching articles now...');
+    refreshNews();
   } else {
     console.log(`✅ Using cached articles (${cache.articles.length} articles, ${Math.round(cacheAge/60000)}m old)`);
   }
