@@ -6,6 +6,7 @@ const helmet      = require('helmet');
 const rateLimit   = require('express-rate-limit');
 const cron        = require('node-cron');
 // rss-parser removed — using NewsAPI instead
+const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Stripe      = require('stripe');
 const nodemailer  = require('nodemailer');
