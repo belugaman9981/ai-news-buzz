@@ -5,7 +5,7 @@ const compression = require('compression');
 const helmet      = require('helmet');
 const rateLimit   = require('express-rate-limit');
 const cron        = require('node-cron');
-const RSSParser   = require('rss-parser');
+// rss-parser removed — using NewsAPI instead
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Stripe      = require('stripe');
 const nodemailer  = require('nodemailer');
@@ -31,7 +31,7 @@ if (!process.env.GEMINI_API_KEY)    { console.warn('⚠ GEMINI_API_KEY not set �
 if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not set — payments disabled'); }
 
 const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
+const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 if (!process.env.GMAIL_APP_PASSWORD) { console.warn('⚠ GMAIL_APP_PASSWORD not set — emails disabled'); }
 const mailer = process.env.GMAIL_APP_PASSWORD
@@ -41,46 +41,22 @@ const mailer = process.env.GMAIL_APP_PASSWORD
     })
   : null;
 const FROM   = 'kidsaibuzz@gmail.com';
-const parser = new RSSParser({
-  timeout: 10000,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0; +https://ai-news-buzz.onrender.com)',
-    'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-  },
-});
-const axios  = require('axios');
+if (!process.env.NEWS_API_KEY) { console.warn('⚠ NEWS_API_KEY not set — cannot fetch articles'); }
 
 /* ═══════════════════════════════════════════════
-   SOURCES  — HN Algolia + RSS fallbacks
+   NEWSAPI QUERIES — one per category
 ═══════════════════════════════════════════════ */
-const RSS_FEEDS = [
-  // General AI / Tech — open feeds
-  { url: 'https://rss.arxiv.org/rss/cs.AI',                                    source: 'ArXiv AI'      },
-  { url: 'https://rss.arxiv.org/rss/cs.LG',                                    source: 'ArXiv ML'      },
-  { url: 'https://rss.arxiv.org/rss/cs.CV',                                    source: 'ArXiv Vision'  },
-  { url: 'https://blog.research.google/feeds/posts/default',                   source: 'Google AI Blog'},
-  { url: 'https://openai.com/blog/rss.xml',                                    source: 'OpenAI Blog'   },
-  { url: 'https://www.deepmind.com/blog/rss.xml',                              source: 'DeepMind'      },
-  { url: 'https://huggingface.co/blog/feed.xml',                               source: 'HuggingFace'   },
-  { url: 'https://towardsdatascience.com/feed',                                source: 'Towards DS'    },
-  { url: 'https://machinelearningmastery.com/feed/',                           source: 'ML Mastery'    },
-  // Robots
-  { url: 'https://rss.arxiv.org/rss/cs.RO',                                    source: 'ArXiv Robots'  },
-  { url: 'https://spectrum.ieee.org/feeds/blog/automaton.rss',                 source: 'IEEE Automaton'},
-  // Space / Science
-  { url: 'https://rss.arxiv.org/rss/astro-ph.EP',                              source: 'ArXiv Space'   },
-  { url: 'https://www.nasa.gov/feed/',                                          source: 'NASA'          },
-  { url: 'https://earthobservatory.nasa.gov/feeds/earth-observatory.rss',      source: 'NASA Earth'    },
-  { url: 'https://rss.arxiv.org/rss/q-bio',                                    source: 'ArXiv Biology' },
-  { url: 'https://rss.arxiv.org/rss/physics',                                  source: 'ArXiv Physics' },
-  // Animals / Nature
-  { url: 'https://www.eurekalert.org/rss/biology.xml',                         source: 'EurekAlert Bio'},
-  // Gaming
-  { url: 'https://www.pcgamer.com/rss/',                                        source: 'PC Gamer'      },
-  { url: 'https://www.eurogamer.net/?format=rss',                              source: 'Eurogamer'     },
-  // General Tech backup
-  { url: 'https://feeds.arstechnica.com/arstechnica/index',                    source: 'Ars Technica'  },
-  { url: 'https://www.theguardian.com/technology/rss',                         source: 'Guardian Tech' },
+const NEWSAPI_QUERIES = [
+  { q: 'artificial intelligence',        label: 'AI'       },
+  { q: 'machine learning deep learning', label: 'ML'       },
+  { q: 'robotics robot humanoid',        label: 'Robots'   },
+  { q: 'AI art image generation',        label: 'AI Art'   },
+  { q: 'space NASA rocket astronomy',    label: 'Space'    },
+  { q: 'AI science medical research',    label: 'Science'  },
+  { q: 'AI gaming video games',          label: 'Gaming'   },
+  { q: 'wildlife animals nature',        label: 'Animals'  },
+  { q: 'OpenAI GPT Gemini LLM',          label: 'LLMs'     },
+  { q: 'drone autonomous self-driving',  label: 'Drones'   },
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -114,120 +90,70 @@ try {
   }
 } catch(e) { console.warn('⚠ Could not load cache from disk:', e.message); }
 
-/* ── fetch full article body from a URL ── */
-async function fetchArticleBody(url) {
-  try {
-    const res = await axios.get(url, {
-      timeout: 4000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0)' },
-      maxContentLength: 200000,
-    });
-    const html = res.data || '';
-    return html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 5000);
-  } catch { return ''; }
-}
-
-/* ── fetch HN stories ── */
-async function fetchHNStories() {
-  try {
-    const queries = [
-      'artificial intelligence machine learning',
-      'robotics robot automation humanoid',
-      'AI art image generation Midjourney DALL-E Stable Diffusion',
-      'AI science medical research discovery',
-      'AI gaming video games NPC',
-      'space NASA rocket astronomy telescope',
-      'AI animals wildlife nature conservation',
-      'openai GPT deepmind anthropic',
-      'robot drone autonomous vehicle',
-      'AI medical health diagnosis',
-    ];
-    const results = await Promise.all(
-      queries.map(q =>
-        axios.get(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=10&numericFilters=points>20`, { timeout: 5000 })
-          .then(r => (r.data.hits||[]).filter(h=>h.url&&h.title?.length>15).map(h=>({ title:h.title, link:h.url, pubDate:h.created_at, source:'HN', snippet:'' })))
-          .catch(()=>[])
-      )
-    );
-    return results.flat();
-  } catch(e) { console.warn('⚠ HN failed:', e.message); return []; }
-}
-
-/* ── scrape RSS feed ── */
-async function scrapeFeed(feed) {
-  try {
-    const r = await parser.parseURL(feed.url);
-    return (r.items || []).slice(0, 20).map(i => ({
-      title:   (i.title || '').replace(/&amp;/g,'&').replace(/&#8217;/g,"'").trim(),
-      link:    i.link || '',
-      pubDate: i.pubDate || i.isoDate || new Date().toISOString(),
-      source:  feed.source,
-      snippet: (i.contentSnippet || i.description || '').replace(/<[^>]+>/g,'').slice(0, 800).trim(),
-    }));
-  } catch(e) { console.warn(`⚠ ${feed.source}: ${e.message}`); return []; }
-}
-
-/* ── main pipeline ── */
+/* ── fetch articles from NewsAPI ── */
 async function scrapeAllFeeds() {
-  console.log('📡 Fetching stories...');
+  if (!process.env.NEWS_API_KEY) {
+    console.warn('⚠ NEWS_API_KEY not set — skipping fetch');
+    return [];
+  }
 
-  const [hnResult, ...rssResults] = await Promise.allSettled([
-    fetchHNStories(),
-    ...RSS_FEEDS.map(scrapeFeed)
-  ]);
+  console.log('📡 Fetching stories from NewsAPI...');
 
-  const hn  = hnResult.status === 'fulfilled' ? hnResult.value : [];
-  const rss = rssResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
-  const all = [...hn, ...rss].filter(a => a.title?.length > 15);
+  const results = await Promise.allSettled(
+    NEWSAPI_QUERIES.map(({ q, label }) =>
+      axios.get('https://newsapi.org/v2/everything', {
+        timeout: 10000,
+        params: {
+          q,
+          language: 'en',
+          sortBy: 'publishedAt',
+          pageSize: 20,
+          apiKey: process.env.NEWS_API_KEY,
+        },
+      }).then(r => {
+        const articles = (r.data.articles || [])
+          .filter(a => a.title && a.title !== '[Removed]' && a.url)
+          .map(a => ({
+            title:   a.title.trim(),
+            link:    a.url,
+            pubDate: a.publishedAt,
+            source:  a.source?.name || label,
+            snippet: (a.description || a.content || '').replace(/<[^>]+>/g, '').slice(0, 800).trim(),
+            body:    (a.content || a.description || '').replace(/<[^>]+>/g, '').slice(0, 3000).trim(),
+          }));
+        console.log(`   ✓ ${label}: ${articles.length} articles`);
+        return articles;
+      }).catch(e => {
+        console.warn(`   ⚠ ${label}: ${e.response?.data?.message || e.message}`);
+        return [];
+      })
+    )
+  );
 
+  const all = results
+    .filter(r => r.status === 'fulfilled')
+    .flatMap(r => r.value)
+    .filter(a => a.title?.length > 15);
+
+  // deduplicate by URL and title
   const seenUrls = new Set(), seenTitles = new Set(), dedup = [];
   for (const item of all) {
-    const urlKey = item.link ? (() => { try { const u = new URL(item.link); return u.hostname + u.pathname; } catch { return item.link; } })() : '';
-    const titleKey = item.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0, 60);
+    const urlKey   = item.link ? (() => { try { const u = new URL(item.link); return u.hostname + u.pathname; } catch { return item.link; } })() : '';
+    const titleKey = item.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 60);
     if ((urlKey && seenUrls.has(urlKey)) || seenTitles.has(titleKey)) continue;
     if (urlKey) seenUrls.add(urlKey);
     seenTitles.add(titleKey);
     dedup.push(item);
   }
-  const STOP_WORDS = new Set(['a','an','the','is','are','was','were','has','have','had','be','been','being','in','on','at','to','for','of','and','or','but','with','by','from','as','it','its','this','that','how','why','what','when','where','who','will','can','could','would','should','may','might','new','says','say','said','use','uses','used','ai','after','before','over','more','than','about','into','all','up','out','one','two','three','first','just','not','their','they','its','our','your','his','her']);
-  function titleKeywords(t) {
-    return new Set(t.toLowerCase().replace(/[^a-z0-9 ]/g,'').split(/\s+/).filter(w => w.length > 3 && !STOP_WORDS.has(w)));
-  }
-  const semDedup = [], seenWordSets = [];
-  for (const item of dedup) {
-    const words = titleKeywords(item.title);
-    if (words.size === 0) { semDedup.push(item); continue; }
-    let tooSimilar = false;
-    for (const seen of seenWordSets) {
-      const overlap = [...words].filter(w => seen.has(w)).length / Math.min(words.size, seen.size);
-      if (overlap >= 0.5) { tooSimilar = true; break; }
-    }
-    if (!tooSimilar) { semDedup.push(item); seenWordSets.push(words); }
-  }
 
-  semDedup.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-  const top = semDedup.slice(0, 200);
+  dedup.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  const top = dedup.slice(0, 200);
   console.log(`   → ${top.length} stories found`);
-
-  console.log('   → Fetching bodies in parallel...');
-  const bodies = await Promise.all(
-    top.map(a => a.link ? fetchArticleBody(a.link) : Promise.resolve(''))
-  );
-
-  const withContent = top.map((a, i) => ({
-    ...a,
-    body: bodies[i] || a.snippet || '',
-  })).filter(a => (a.body?.length > 100) || a.title?.length > 20);
-
-  console.log(`   → ${withContent.length} articles with content`);
-  return withContent.slice(0, 160);
+  console.log(`   → ${top.filter(a => a.body?.length > 100).length} articles with content`);
+  return top;
 }
+
+
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
@@ -313,7 +239,8 @@ CRITICAL rules:
       } catch(err) {
         const msg = err.message || '';
         const batchNum = Math.floor(i/BATCH)+1;
-        console.warn(`   ⚠ Batch ${batchNum} attempt ${attempt+1} failed: ${msg.slice(0,120)}`);
+        console.warn(`   ⚠ Batch ${batchNum} attempt ${attempt+1} failed: ${msg.slice(0,200)}`);
+        if (err.status || err.statusText) console.warn(`   ⚠ HTTP status: ${err.status} ${err.statusText}`);
 
         if(msg.includes('PerDay') || (msg.includes('limit: 0') && msg.includes('Per'))){
           console.warn('   ✖ Daily Gemini quota exhausted — skipping remaining batches');
@@ -885,7 +812,7 @@ app.get('*', (_,res) => res.sendFile(path.join(__dirname,'public','index.html'))
 app.listen(PORT, async () => {
   console.log(`\n🚀 Kids AI Buzz → http://localhost:${PORT}`);
   console.log(`💳 Stripe enabled: ${!!process.env.STRIPE_SECRET_KEY}`);
-  console.log(`📡 ${RSS_FEEDS.length} RSS feeds | 🔄 Cron: ${REFRESH_CRON}\n`);
+  console.log(`📡 ${NEWSAPI_QUERIES.length} NewsAPI queries | 🔄 Cron: ${REFRESH_CRON}\n`);
 
   const cacheAge = cache.lastUpdated ? (Date.now() - new Date(cache.lastUpdated)) : Infinity;
   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
