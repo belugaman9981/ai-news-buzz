@@ -1,6 +1,6 @@
 # Kids AI Buzz 🚀
 
-Real AI news scraped from 8 top tech sources, rewritten by Claude AI into kid-friendly language at 3 reading levels.
+Real AI news scraped from 8 top tech sources, written by Claude AI into kid-friendly language at 3 reading levels.
 
 ---
 
