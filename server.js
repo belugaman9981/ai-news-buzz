@@ -32,7 +32,36 @@ if (!process.env.GEMINI_API_KEY)    { console.warn('⚠ GEMINI_API_KEY not set �
 if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not set — payments disabled'); }
 
 const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-const gemini = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' }) : null;
+let gemini = null;
+if (genAI) {
+  // Try models in order of preference — first one that exists wins
+  const CANDIDATE_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-preview-05-20',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
+  ];
+  (async () => {
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const m = genAI.getGenerativeModel({ model });
+        await m.generateContent({ contents: [{ role: 'user', parts: [{ text: 'hi' }] }] });
+        gemini = m;
+        console.log(`✅ Gemini model: ${model}`);
+        break;
+      } catch (e) {
+        if (e.status === 404) { console.log(`   ✗ ${model} not available`); continue; }
+        // 429 = quota hit but model exists — use it anyway
+        gemini = genAI.getGenerativeModel({ model });
+        console.log(`✅ Gemini model: ${model} (quota currently limited)`);
+        break;
+      }
+    }
+    if (!gemini) console.warn('⚠ No working Gemini model found — will serve raw articles');
+  })();
+}
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 if (!process.env.GMAIL_APP_PASSWORD) { console.warn('⚠ GMAIL_APP_PASSWORD not set — emails disabled'); }
 const mailer = process.env.GMAIL_APP_PASSWORD
