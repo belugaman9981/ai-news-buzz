@@ -1059,7 +1059,14 @@ function openArticle(i){
   document.getElementById('artTitle').textContent = decodeHtml(a.headline);
   const bodyEl = document.getElementById('artBody');
   const fullText = decodeHtml(a.full || a.summary);
-  bodyEl.innerHTML = fullText.split('\n\n').map(p => `<p>${esc(p.trim())}</p>`).join('') + '<div id="explainHint" style="font-size:12px;color:var(--muted);margin-top:1rem;text-align:center;opacity:.7">💡 Highlight any word for a kid-friendly explanation</div><div id="explainPopup" style="display:none;margin-top:1rem;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px" id="explainWord"></div><div style="font-size:15px;color:var(--text);line-height:1.6;font-weight:600" id="explainDef">Thinking...</div><button onclick="document.getElementById('explainPopup').style.display='none'" style="margin-top:10px;font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;">✕ close</button></div>';
+  const paragraphs = fullText.split('\n\n').map(function(p){ return '<p>' + esc(p.trim()) + '</p>'; }).join('');
+  const explainHtml = '<div id="explainHint" style="font-size:12px;color:var(--muted);margin-top:1rem;text-align:center;opacity:.7">💡 Highlight any word for a kid-friendly explanation</div>' +
+    '<div id="explainPopup" style="display:none;margin-top:1rem;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;">' +
+    '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px" id="explainWord"></div>' +
+    '<div style="font-size:15px;color:var(--text);line-height:1.6;font-weight:600" id="explainDef">Thinking...</div>' +
+    '<button onclick="document.getElementById(\'explainPopup\').style.display=\'none\'" style="margin-top:10px;font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;">✕ close</button>' +
+    '</div>';
+  bodyEl.innerHTML = paragraphs + explainHtml;
   document.getElementById('artBody').addEventListener('mouseup', handleExplain);
   document.getElementById('artBody').addEventListener('touchend', () => setTimeout(handleExplain, 200));
   document.getElementById('artWow').textContent = decodeHtml(a.wow);
