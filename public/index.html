@@ -884,6 +884,7 @@ async function loadNews(reset=true){
     const data=await r.json();
 
     const newArticles = data.articles || [];
+    console.log('[KAB] loadNews got', newArticles.length, 'articles, isRefreshing:', data.isRefreshing);
     if(reset){
       allArticles = newArticles;
     } else {
@@ -922,7 +923,12 @@ async function loadNews(reset=true){
       document.getElementById('totalCount').textContent=data.total;
     } else { pw.style.display='none'; }
 
-    renderCards();
+    try {
+      renderCards();
+    } catch(renderErr) {
+      console.error('renderCards failed:', renderErr);
+      document.getElementById('content').innerHTML = `<div class="grid">${allArticles.slice(0,12).map(a=>`<div class="card" style="padding:1.5rem;cursor:pointer" onclick="openArticle(${allArticles.indexOf(a)})"><h2 style="font-size:1.1rem;margin:0 0 .5rem">${esc(a.headline||'')}</h2><p style="font-size:.9rem;opacity:.7">${esc(a.summary||'')}</p></div>`).join('')}</div>`;
+    }
     updateLoadMoreBtn();
   }catch(err){
     document.getElementById('content').innerHTML=`<div class="state"><span class="state-ico">😬</span><h2>Can't reach server</h2><p>${esc(err.message)}</p><button class="retry" onclick="loadNews()">Try again</button></div>`;
