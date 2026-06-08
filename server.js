@@ -715,7 +715,7 @@ app.get('/api/news', (req, res) => {
   const level    = ['young','middle','older'].includes(req.query.level) ? req.query.level : 'middle';
   const category = req.query.category || 'all';
   const page     = Math.max(1, parseInt(req.query.page || '1'));
-  const pageSize = 12;
+  const pageSize = 18;
 
   let subscribed = false;
   const header = req.headers.authorization || '';

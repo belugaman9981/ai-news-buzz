@@ -769,7 +769,7 @@ body.dark .modal{background:var(--surface)}
 /* ── state ── */
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
 let currentTab='login', token=localStorage.getItem('kab_token');
-let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=2;
+let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=6;
 
 const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
 const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
@@ -806,12 +806,12 @@ function setCategory(cat, scroll=true){
   activeCat=cat;
   currentPage=1;
   allArticles=[];
-  visibleFreeCount=2;
+  visibleFreeCount=6;
   document.querySelectorAll('.cat').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
   loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=2;loadNews(true);}
+function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=6;loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
@@ -827,7 +827,7 @@ function renderCards(){
   }
 
   const free   = list.filter(a=>!a.locked);
-  const locked = list.filter(a=>a.locked).slice(0, 4); // always show 4 locked teasers
+  const locked = list.filter(a=>a.locked).slice(0, 6); // show 6 locked teasers
   const visibleFree = free.slice(0, visibleFreeCount); // show 2 free initially, up to 10
   const lbl = searchQuery
     ? `🔍 "${searchQuery}" — ${free.length} results`
@@ -938,15 +938,24 @@ async function loadNews(reset=true){
 async function loadMore(){
   const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
   const free = list.filter(a=>!a.locked);
-  const cap = Math.min(free.length, 10);
+  const cap = Math.min(free.length, 6);
   if(visibleFreeCount < cap){
-    visibleFreeCount = cap; // reveal all remaining free (up to 10)
+    visibleFreeCount = cap;
     renderCards();
     updateLoadMoreBtn();
     return;
   }
   // fetch next page from server if there are more
-  if(isFetchingMore || !hasMorePages) return;
+  if(isFetchingMore || !hasMorePages){
+    // no more free stories — prompt to subscribe
+    const btn = document.getElementById('loadMoreBtn');
+    if(btn) {
+      btn.textContent = '🔒 Subscribe to read all stories!';
+      btn.style.background = 'var(--purple)';
+      btn.onclick = subscribe;
+    }
+    return;
+  }
   isFetchingMore = true;
   currentPage++;
   document.getElementById('loadMoreBtn').textContent = 'Loading...';
@@ -959,9 +968,19 @@ function updateLoadMoreBtn(){
   if(!btn) return;
   const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
   const free = list.filter(a=>!a.locked);
-  const canRevealMore = visibleFreeCount < Math.min(free.length, 10);
-  btn.style.display = (canRevealMore || hasMorePages) ? 'block' : 'none';
-  btn.textContent = 'Load more stories ↓';
+  const canRevealMore = visibleFreeCount < Math.min(free.length, 6);
+  if(canRevealMore || hasMorePages){
+    btn.style.display = 'block';
+    btn.textContent = 'Load more stories ↓';
+    btn.style.background = '';
+    btn.onclick = loadMore;
+  } else {
+    // all free stories shown — show subscribe prompt
+    btn.style.display = 'block';
+    btn.textContent = '🔒 Subscribe to unlock all stories!';
+    btn.style.background = 'var(--purple)';
+    btn.onclick = subscribe;
+  }
 }
 
 /* ── subscribe ── */
