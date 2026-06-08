@@ -282,8 +282,23 @@ async function refreshNews() {
       return;
     }
 
-    const rewritten = await rewriteForKids(raw);
-    if(!rewritten || !rewritten.length){ console.warn('⚠ No articles rewritten'); cache.isRefreshing=false; return; }
+    let rewritten = await rewriteForKids(raw);
+    if (!rewritten || !rewritten.length) {
+      console.warn('⚠ Gemini rewriting failed — serving raw articles directly');
+      rewritten = raw.slice(0, 60).map(a => ({
+        id: Date.now() + Math.random(),
+        headline: a.title,
+        category: detectCategory(a.title, a.body || a.snippet || ''),
+        source: a.source,
+        link: a.link,
+        pubDate: a.pubDate,
+        levels: {
+          young:  { summary: (a.snippet || a.body || a.title).slice(0, 200), full: a.body || a.snippet || a.title, wow: 'Scientists are making amazing discoveries every day!' },
+          middle: { summary: (a.snippet || a.body || a.title).slice(0, 300), full: a.body || a.snippet || a.title, wow: 'Researchers around the world are working on this.' },
+          older:  { summary: (a.snippet || a.body || a.title).slice(0, 400), full: a.body || a.snippet || a.title, wow: 'This represents a significant development in the field.' },
+        },
+      }));
+    }
 
     const CATS = ['robots','art','science','gaming','animals','space','cool'];
     const byCategory = {};
