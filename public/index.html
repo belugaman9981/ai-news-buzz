@@ -940,12 +940,12 @@ async function loadMore(){
   const free = list.filter(a=>!a.locked);
   const cap = Math.min(free.length, 6);
   if(visibleFreeCount < cap){
-    visibleFreeCount = cap; // reveal up to 6 free
+    visibleFreeCount = cap;
     renderCards();
     updateLoadMoreBtn();
     return;
   }
-  // all 6 free shown — prompt subscribe
+  // no more free — show subscribe prompt
   const btn = document.getElementById('loadMoreBtn');
   if(btn){
     btn.textContent = '🔒 Subscribe to unlock all stories!';

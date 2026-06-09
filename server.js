@@ -734,7 +734,7 @@ app.get('/api/news', (req, res) => {
   const allShaped = articles.map((a, i) => {
     const cat = a.category || 'cool';
     if (!catFreeCount[cat]) catFreeCount[cat] = 0;
-    const isFree = subscribed || catFreeCount[cat] < 6;
+    const isFree = subscribed || catFreeCount[cat] < 2;
     if (!subscribed && isFree) catFreeCount[cat]++;
     return {
       id:       a.id,
