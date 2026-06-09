@@ -98,6 +98,22 @@ const CATEGORY_KEYWORDS = {
   science: ['research','study','discovery','medical','health','brain','climate','quantum','physics','chemistry','cancer','diagnosis','medicine','hospital','scientist','laboratory','experiment','gene','dna'],
   cool:    ['chatgpt','gpt','gemini','llm','language model','openai','deepmind','anthropic','nvidia','chip','processor','neural network','machine learning','breakthrough','record','first ever','new model','ai assistant','copilot'],
 };
+function cleanText(text, maxLen) {
+  if (!text) return '';
+  let t = text
+    .replace(/<[^>]+>/g, ' ')           // strip HTML
+    .replace(/\[\+\d+ chars?\]/gi, '')   // remove [+10695 chars]
+    .replace(/\s+/g, ' ')               // collapse whitespace
+    .trim();
+  if (maxLen && t.length > maxLen) {
+    // cut at last sentence boundary before maxLen
+    const cut = t.slice(0, maxLen);
+    const lastDot = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+    t = lastDot > maxLen * 0.5 ? cut.slice(0, lastDot + 1) : cut + '…';
+  }
+  return t;
+}
+
 function detectCategory(title, summary) {
   const text = (title + ' ' + summary).toLowerCase();
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS))
@@ -148,8 +164,8 @@ async function scrapeAllFeeds() {
             link:    a.url,
             pubDate: a.publishedAt,
             source:  a.source?.name || label,
-            snippet: (a.description || a.content || '').replace(/<[^>]+>/g, '').slice(0, 800).trim(),
-            body:    (a.content || a.description || '').replace(/<[^>]+>/g, '').slice(0, 3000).trim(),
+            snippet: cleanText(a.description || a.content || '', 300),
+            body:    cleanText(a.content || a.description || '', 3000),
           }));
         console.log(`   ✓ ${label}: ${articles.length} articles`);
         return articles;
@@ -199,9 +215,9 @@ async function rewriteForKids(rawArticles) {
       link: a.link,
       pubDate: a.pubDate,
       levels: {
-        young:  { summary: (a.snippet || a.body || a.title).slice(0, 200), full: a.body || a.snippet || a.title, wow: 'Scientists are making amazing discoveries every day!' },
-        middle: { summary: (a.snippet || a.body || a.title).slice(0, 300), full: a.body || a.snippet || a.title, wow: 'Researchers around the world are working on this.' },
-        older:  { summary: (a.snippet || a.body || a.title).slice(0, 400), full: a.body || a.snippet || a.title, wow: 'This represents a significant development in the field.' },
+        young:  { summary: cleanText(a.snippet || a.body || a.title, 200), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every day!' },
+        middle: { summary: cleanText(a.snippet || a.body || a.title, 300), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'Researchers around the world are working on this.' },
+        older:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 2500), wow: 'This represents a significant development in the field.' },
       },
     }));
   }
@@ -322,9 +338,9 @@ async function refreshNews() {
         link: a.link,
         pubDate: a.pubDate,
         levels: {
-          young:  { summary: (a.snippet || a.body || a.title).slice(0, 200), full: a.body || a.snippet || a.title, wow: 'Scientists are making amazing discoveries every day!' },
-          middle: { summary: (a.snippet || a.body || a.title).slice(0, 300), full: a.body || a.snippet || a.title, wow: 'Researchers around the world are working on this.' },
-          older:  { summary: (a.snippet || a.body || a.title).slice(0, 400), full: a.body || a.snippet || a.title, wow: 'This represents a significant development in the field.' },
+          young:  { summary: cleanText(a.snippet || a.body || a.title, 200), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every day!' },
+          middle: { summary: cleanText(a.snippet || a.body || a.title, 300), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'Researchers around the world are working on this.' },
+          older:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 2500), wow: 'This represents a significant development in the field.' },
         },
       }));
     }
