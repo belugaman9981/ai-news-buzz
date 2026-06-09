@@ -769,7 +769,7 @@ body.dark .modal{background:var(--surface)}
 /* ── state ── */
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
 let currentTab='login', token=localStorage.getItem('kab_token');
-let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=2;
+let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=1;
 
 const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
 const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
@@ -806,12 +806,16 @@ function setCategory(cat, scroll=true){
   activeCat=cat;
   currentPage=1;
   allArticles=[];
-  visibleFreeCount=2;
+  visibleFreeCount=1;
+  loadMorePressCount=0;
+  loadMoreDeadPresses = 1 + Math.floor(Math.random() * 2);
+  const subMsg = document.getElementById('loadMoreSubMsg');
+  if(subMsg) subMsg.remove();
   document.querySelectorAll('.cat').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
   loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=2;loadNews(true);}
+function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=1;loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
@@ -935,46 +939,49 @@ async function loadNews(reset=true){
   }
 }
 
+let loadMorePressCount = 0;
+let loadMoreDeadPresses = 1 + Math.floor(Math.random() * 2);
+
 async function loadMore(){
   const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
   const free = list.filter(a=>!a.locked);
-  const cap = Math.min(free.length, 6);
-  if(visibleFreeCount < cap){
-    visibleFreeCount = cap;
+
+  // First press: reveal 2nd free story per category
+  if(visibleFreeCount < 2 && free.length >= 2){
+    visibleFreeCount = 2;
+    loadMorePressCount = 0;
+    loadMoreDeadPresses = 1 + Math.floor(Math.random() * 2);
     renderCards();
     updateLoadMoreBtn();
     return;
   }
-  // no more free — show subscribe prompt
-  const btn = document.getElementById('loadMoreBtn');
-  if(btn){
-    btn.textContent = '🔒 Subscribe to unlock all stories!';
-    btn.style.background = 'var(--purple)';
-    btn.onclick = subscribe;
+
+  // Subsequent presses: dead presses then subscribe
+  loadMorePressCount++;
+  if(loadMorePressCount < loadMoreDeadPresses){
+    // do nothing — button just sits there
+    return;
   }
-  isFetchingMore = true;
-  currentPage++;
-  document.getElementById('loadMoreBtn').textContent = 'Loading...';
-  await loadNews(false);
-  isFetchingMore = false;
+
+  // Show subscribe prompt
+  const existing = document.getElementById('loadMoreSubMsg');
+  if(!existing){
+    const msg = document.createElement('div');
+    msg.id = 'loadMoreSubMsg';
+    msg.style.cssText = 'text-align:center;margin:1rem auto;padding:1.25rem 2rem;background:var(--card);border:2px solid var(--purple);border-radius:16px;max-width:480px;font-family:inherit';
+    msg.innerHTML = '<div style="font-size:1.5rem;margin-bottom:.5rem">🔒</div><div style="font-weight:700;font-size:1.1rem;margin-bottom:.4rem">Want to read more?</div><div style="color:var(--muted);font-size:.95rem;margin-bottom:1rem">Subscribe to unlock all stories — 7-day free trial!</div><button onclick="subscribe()" style="background:var(--purple);color:#fff;border:none;border-radius:99px;padding:.65rem 2rem;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">Start Free Trial →</button>';
+    const btn = document.getElementById('loadMoreBtn');
+    btn.parentNode.insertBefore(msg, btn.nextSibling);
+  }
 }
 
 function updateLoadMoreBtn(){
   const btn = document.getElementById('loadMoreBtn');
   if(!btn) return;
-  const list = activeCat==='all' ? allArticles : allArticles.filter(a=>a.category===activeCat);
-  const free = list.filter(a=>!a.locked);
-  const canRevealMore = visibleFreeCount < Math.min(free.length, 6);
   btn.style.display = 'block';
-  if(canRevealMore){
-    btn.textContent = 'Load more stories ↓';
-    btn.style.background = '';
-    btn.onclick = loadMore;
-  } else {
-    btn.textContent = '🔒 Subscribe to unlock all stories!';
-    btn.style.background = 'var(--purple)';
-    btn.onclick = subscribe;
-  }
+  btn.textContent = 'Load more stories ↓';
+  btn.style.background = '';
+  btn.onclick = loadMore;
 }
 
 /* ── subscribe ── */
