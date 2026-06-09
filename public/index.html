@@ -769,7 +769,7 @@ body.dark .modal{background:var(--surface)}
 /* ── state ── */
 let allArticles=[], activeCat='all', activeLevel='middle', isSubscribed=false;
 let currentTab='login', token=localStorage.getItem('kab_token');
-let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=1;
+let currentPage=1, isFetchingMore=false, hasMorePages=false, visibleFreeCount=2;
 
 const EMO={robots:'🤖',art:'🎨',science:'🔬',gaming:'🎮',animals:'🐾',space:'🚀',cool:'💡'};
 const LBL={robots:'Robots',art:'AI Art',science:'Science',gaming:'Gaming',animals:'Animals',space:'Space',cool:'Cool stuff'};
@@ -806,7 +806,7 @@ function setCategory(cat, scroll=true){
   activeCat=cat;
   currentPage=1;
   allArticles=[];
-  visibleFreeCount=1;
+  visibleFreeCount=2;
   loadMorePressCount=0;
   loadMoreDeadPresses = 1 + Math.floor(Math.random() * 2);
   const subMsg = document.getElementById('loadMoreSubMsg');
@@ -815,7 +815,7 @@ function setCategory(cat, scroll=true){
   loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=1;loadNews(true);}
+function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=2;loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
@@ -831,7 +831,7 @@ function renderCards(){
   }
 
   const free   = list.filter(a=>!a.locked);
-  const locked = list.filter(a=>a.locked).slice(0, 6); // show 6 locked teasers
+  const locked = list.filter(a=>a.locked).slice(0, 4); // show 4 locked teasers
   const visibleFree = free.slice(0, visibleFreeCount); // show 2 free initially, up to 10
   const lbl = searchQuery
     ? `🔍 "${searchQuery}" — ${free.length} results`
