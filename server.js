@@ -651,7 +651,7 @@ app.post('/api/stripe/checkout', authMiddleware, async (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Payments not configured' });
   const PROMO_COUPON_ID = process.env.STRIPE_PROMO_COUPON_ID;
   const promoRequested = req.body?.usePromo === true;
-  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
+  const isPromo = promoRequested && !!PROMO_COUPON_ID && new Date() < new Date('2026-06-29T00:00:00Z');
   if (!PRICE_ID) return res.status(500).json({ error: 'Stripe price ID not configured' });
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -775,8 +775,8 @@ app.get('/api/news', (req, res) => {
 
 /* ─── STATUS / ADMIN ──────────────────────────── */
 app.get('/api/promo', (req, res) => {
-  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-01T00:00:00Z');
-  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-01' });
+  const isPromo = !!process.env.STRIPE_PROMO_COUPON_ID && new Date() < new Date('2026-06-29T00:00:00Z');
+  res.json({ isPromo, promoPrice: '1.99', regularPrice: '3.99', promoEnds: '2026-06-29' });
 });
 
 app.get('/api/status', (req,res) => res.json({ ok:true, articleCount:cache.articles.length, lastUpdated:cache.lastUpdated, isRefreshing:cache.isRefreshing, users:db.get('users').size().value() }));
