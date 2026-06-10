@@ -305,13 +305,13 @@ Each object must have exactly:
   "headline": "fun title max 10 words",
   "category": "robots|art|science|gaming|animals|space|cool",
   "levels": {
-    "young":  { "summary": "One flowing paragraph (~2000 characters) written for age 7. Use very simple, fun words. Tell the whole story — what happened, why it's cool, and what it means. No bullet points, just one readable paragraph.", "full": "5 paragraphs for age 7, each 3-4 sentences. Use very simple fun words. Separate every paragraph with \\n\\n", "wow": "surprising fact max 10 words" },
-    "middle": { "summary": "One flowing paragraph (~2000 characters) written for age 10. Cover what happened, why it matters, how it works, and what comes next. No bullet points, just one readable paragraph.", "full": "7 paragraphs for age 10, each 4-5 sentences. Include what happened, why it matters, how it works, who did it, cool details, and what comes next. Separate every paragraph with \\n\\n", "wow": "interesting fact max 14 words" },
-    "older":  { "summary": "One flowing paragraph (~2000 characters) written for age 13. Include background, what happened, technical details, real-world impact, and future implications. No bullet points, just one readable paragraph.", "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
+    "young":  { "summary": "One flowing paragraph between 400 and 700 words written for age 7. Use very simple, fun words. Tell the whole story — what happened, why it's cool, and what it means. No bullet points, just one readable paragraph.", "full": "5 paragraphs for age 7, each 3-4 sentences. Use very simple fun words. Separate every paragraph with \\n\\n", "wow": "surprising fact max 10 words" },
+    "middle": { "summary": "One flowing paragraph between 400 and 700 words written for age 10. Cover what happened, why it matters, how it works, and what comes next. No bullet points, just one readable paragraph.", "full": "7 paragraphs for age 10, each 4-5 sentences. Include what happened, why it matters, how it works, who did it, cool details, and what comes next. Separate every paragraph with \\n\\n", "wow": "interesting fact max 14 words" },
+    "older":  { "summary": "One flowing paragraph between 400 and 700 words written for age 13. Include background, what happened, technical details, real-world impact, and future implications. No bullet points, just one readable paragraph.", "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
   }
 }
 CRITICAL rules:
-- summary fields must be a single continuous paragraph of ~2000 characters — not bullet points, not multiple paragraphs
+- summary fields must be a single continuous paragraph of 400–700 words — not bullet points, not multiple paragraphs
 - paragraphs in "full" MUST be separated by \\n\\n
 - wow must be specific to THIS story — a real number, name, or detail. NEVER say "big deal for AI" or "AI is amazing"
 - For category, be creative and varied — use ALL categories across the batch:
