@@ -164,7 +164,7 @@ async function scrapeAllFeeds() {
             link:    a.url,
             pubDate: a.publishedAt,
             source:  a.source?.name || label,
-            snippet: cleanText(a.description || a.content || '', 300),
+            snippet: cleanText(a.description || a.content || '', 600),
             body:    cleanText(a.content || a.description || '', 3000),
           }));
         console.log(`   ✓ ${label}: ${articles.length} articles`);
@@ -215,9 +215,9 @@ async function rewriteForKids(rawArticles) {
       link: a.link,
       pubDate: a.pubDate,
       levels: {
-        young:  { summary: cleanText(a.snippet || a.body || a.title, 200), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every day!' },
-        middle: { summary: cleanText(a.snippet || a.body || a.title, 300), full: cleanText(a.body || a.snippet || a.title, 1800), wow: 'Researchers around the world are working on this.' },
-        older:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'This represents a significant development in the field.' },
+        young:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every day!' },
+        middle: { summary: cleanText(a.snippet || a.body || a.title, 600), full: cleanText(a.body || a.snippet || a.title, 1800), wow: 'Researchers around the world are working on this.' },
+        older:  { summary: cleanText(a.snippet || a.body || a.title, 800), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'This represents a significant development in the field.' },
       },
     }));
   }
@@ -338,9 +338,9 @@ async function refreshNews() {
         link: a.link,
         pubDate: a.pubDate,
         levels: {
-          young:  { summary: cleanText(a.snippet || a.body || a.title, 200), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every single day!' },
-          middle: { summary: cleanText(a.snippet || a.body || a.title, 300), full: cleanText(a.body || a.snippet || a.title, 1800), wow: 'Researchers around the world are working on this.' },
-          older:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'This represents a significant development in this field.' },
+          young:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every single day!' },
+          middle: { summary: cleanText(a.snippet || a.body || a.title, 600), full: cleanText(a.body || a.snippet || a.title, 1800), wow: 'Researchers around the world are working on this.' },
+          older:  { summary: cleanText(a.snippet || a.body || a.title, 800), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'This represents a significant development in this field.' },
         },
       }));
     }
