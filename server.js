@@ -252,9 +252,23 @@ async function rewriteForKids(rawArticles) {
     }));
   }
 
-  // only rewrite first 6 articles per refresh — stays well within Gemini free tier (25 RPD)
-  const toRewrite = rawArticles.slice(0, 6);
-  console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
+  // Pick up to 3 articles per category so every category gets coverage (21 total max)
+  const CATS = ['robots','art','science','gaming','animals','space','cool'];
+  const byDetectedCat = {};
+  CATS.forEach(c => byDetectedCat[c] = []);
+  for (const a of rawArticles) {
+    const c = detectCategory(a.title, a.body || a.snippet || '');
+    if (byDetectedCat[c].length < 3) byDetectedCat[c].push(a);
+  }
+  // Fill any empty categories with overflow from 'cool' / whatever has most
+  for (const c of CATS) {
+    if (byDetectedCat[c].length === 0) {
+      const donor = CATS.find(d => byDetectedCat[d].length > 1 && d !== c);
+      if (donor) byDetectedCat[c].push(byDetectedCat[donor].pop());
+    }
+  }
+  const toRewrite = CATS.flatMap(c => byDetectedCat[c]);
+  console.log(`✍️  Rewriting ${toRewrite.length} articles (${CATS.map(c => `${c}:${byDetectedCat[c].length}`).join(' ')})...`);
 
   // Fetch full article text for each — run in parallel with a 3s stagger to be polite
   console.log('🌐 Fetching full article text...');
@@ -275,10 +289,10 @@ async function rewriteForKids(rawArticles) {
   for(let i=0;i<toRewrite.length;i+=BATCH){
     if(dailyQuotaExhausted) break;
     const batch=toRewrite.slice(i,i+BATCH);
-    const startId=i+1;
+    // IDs are 1-based within each batch so Gemini always sees [1], [2], [3]
     const articleList=batch.map((a,j)=>{
       const content = a.fullText || a.body || a.snippet || 'No content available';
-      return `[${startId+j}] Title: ${a.title}\nContent:\n${content}`;
+      return `[${j+1}] Title: ${a.title}\nContent:\n${content}`;
     }).join('\n\n---\n\n');
     const prompt=`You are a fun kids science writer for a magazine. Write completely original kid-friendly articles based on the stories below. Do NOT credit any source.
 
@@ -315,7 +329,7 @@ CRITICAL rules:
         if(!gemini) throw new Error('Gemini not configured');
         const result = await Promise.race([
           gemini.generateContent(prompt),
-          new Promise((_,rej) => setTimeout(() => rej(new Error('Gemini timeout after 60s')), 60000)),
+          new Promise((_,rej) => setTimeout(() => rej(new Error('Gemini timeout after 90s')), 90000)),
         ]);
         let text = result.response.text();
         text = text.split('\n').filter(l => !l.startsWith('```')).join('\n').trim();
@@ -323,7 +337,7 @@ CRITICAL rules:
         if(s===-1||e===-1) throw new Error('No JSON array');
         const rw=JSON.parse(text.slice(s,e+1));
         for(const r of rw){
-          const raw=toRewrite[r.id-1]; if(!raw) continue;
+          const raw=batch[r.id-1]; if(!raw) continue;
           results.push({ id: Date.now()+r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.body||''), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
         }
         console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
@@ -402,12 +416,24 @@ async function refreshNews() {
       byCategory[c].push(a);
     }
 
-    const sortedBySize = [...CATS].sort((a,b) => byCategory[a].length - byCategory[b].length);
-    let overflow = rewritten.filter(a => byCategory[a.category]?.length > 12);
-    for(const c of sortedBySize){
-      while(byCategory[c].length < 12 && overflow.length){
-        const extra = overflow.shift();
-        byCategory[c].push({...extra, category: c});
+    // Redistribute: take extras from over-stocked categories into empty ones
+    const overflowPool = [];
+    for (const c of CATS) {
+      while (byCategory[c].length > 3) overflowPool.push(byCategory[c].pop());
+    }
+    for (const c of CATS) {
+      while (byCategory[c].length === 0 && overflowPool.length) {
+        const extra = overflowPool.shift();
+        byCategory[c].push({ ...extra, category: c });
+      }
+    }
+    // If still empty after overflow, clone from largest category
+    for (const c of CATS) {
+      if (byCategory[c].length === 0) {
+        const largest = CATS.reduce((best, d) => byCategory[d].length > byCategory[best].length ? d : best, CATS[0]);
+        if (byCategory[largest].length > 0) {
+          byCategory[c].push({ ...byCategory[largest][0], category: c });
+        }
       }
     }
 
