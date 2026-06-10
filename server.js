@@ -199,7 +199,37 @@ async function scrapeAllFeeds() {
   return top;
 }
 
-
+/* ── fetch & extract plain text from an article URL ── */
+async function fetchFullArticle(url) {
+  try {
+    const res = await axios.get(url, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0)',
+        'Accept': 'text/html',
+      },
+      maxContentLength: 2 * 1024 * 1024,
+    });
+    const html = res.data || '';
+    const stripped = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<(nav|header|footer|aside|figure|figcaption|form|button|iframe|noscript)[^>]*>[\s\S]*?<\/\1>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "\'")
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return stripped.length > 200 ? stripped.slice(0, 8000) : null;
+  } catch (e) {
+    console.warn(`   ⚠ fetchFullArticle(${url}): ${e.message}`);
+    return null;
+  }
+}
 
 async function rewriteForKids(rawArticles) {
   if(!rawArticles.length) return [];
@@ -225,6 +255,20 @@ async function rewriteForKids(rawArticles) {
   // only rewrite first 6 articles per refresh — stays well within Gemini free tier (25 RPD)
   const toRewrite = rawArticles.slice(0, 6);
   console.log(`✍️  Rewriting ${toRewrite.length} articles...`);
+
+  // Fetch full article text for each — run in parallel with a 3s stagger to be polite
+  console.log('🌐 Fetching full article text...');
+  for (let i = 0; i < toRewrite.length; i++) {
+    const full = await fetchFullArticle(toRewrite[i].link);
+    if (full) {
+      toRewrite[i].fullText = full;
+      console.log(`   ✓ [${i+1}] fetched ${full.length} chars — ${toRewrite[i].title.slice(0, 60)}`);
+    } else {
+      console.warn(`   ⚠ [${i+1}] fallback to snippet — ${toRewrite[i].title.slice(0, 60)}`);
+    }
+    if (i < toRewrite.length - 1) await new Promise(r => setTimeout(r, 300));
+  }
+
   const BATCH=3; const results=[];
   let dailyQuotaExhausted = false;
 
@@ -232,7 +276,10 @@ async function rewriteForKids(rawArticles) {
     if(dailyQuotaExhausted) break;
     const batch=toRewrite.slice(i,i+BATCH);
     const startId=i+1;
-    const articleList=batch.map((a,j)=>`[${startId+j}] Title: ${a.title}\n${a.body ? 'Content:\n'+a.body.slice(0,1200) : 'No content'}`).join('\n\n---\n\n');
+    const articleList=batch.map((a,j)=>{
+      const content = a.fullText || a.body || a.snippet || 'No content available';
+      return `[${startId+j}] Title: ${a.title}\nContent:\n${content}`;
+    }).join('\n\n---\n\n');
     const prompt=`You are a fun kids science writer for a magazine. Write completely original kid-friendly articles based on the stories below. Do NOT credit any source.
 
 ${articleList}
@@ -244,13 +291,14 @@ Each object must have exactly:
   "headline": "fun title max 10 words",
   "category": "robots|art|science|gaming|animals|space|cool",
   "levels": {
-    "young":  { "summary": "2 simple sentences age 7", "full": "5 paragraphs for age 7, each 3-4 sentences. Use very simple fun words. Separate every paragraph with \\n\\n", "wow": "surprising fact max 10 words" },
-    "middle": { "summary": "2-3 sentences age 10",    "full": "7 paragraphs for age 10, each 4-5 sentences. Include what happened, why it matters, how it works, who did it, cool details, and what comes next. Separate every paragraph with \\n\\n", "wow": "interesting fact max 14 words" },
-    "older":  { "summary": "3 sentences age 13",      "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
+    "young":  { "summary": "One flowing paragraph (~2000 characters) written for age 7. Use very simple, fun words. Tell the whole story — what happened, why it's cool, and what it means. No bullet points, just one readable paragraph.", "full": "5 paragraphs for age 7, each 3-4 sentences. Use very simple fun words. Separate every paragraph with \\n\\n", "wow": "surprising fact max 10 words" },
+    "middle": { "summary": "One flowing paragraph (~2000 characters) written for age 10. Cover what happened, why it matters, how it works, and what comes next. No bullet points, just one readable paragraph.", "full": "7 paragraphs for age 10, each 4-5 sentences. Include what happened, why it matters, how it works, who did it, cool details, and what comes next. Separate every paragraph with \\n\\n", "wow": "interesting fact max 14 words" },
+    "older":  { "summary": "One flowing paragraph (~2000 characters) written for age 13. Include background, what happened, technical details, real-world impact, and future implications. No bullet points, just one readable paragraph.", "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
   }
 }
 CRITICAL rules:
-- paragraphs MUST be separated by \\n\\n
+- summary fields must be a single continuous paragraph of ~2000 characters — not bullet points, not multiple paragraphs
+- paragraphs in "full" MUST be separated by \\n\\n
 - wow must be specific to THIS story — a real number, name, or detail. NEVER say "big deal for AI" or "AI is amazing"
 - For category, be creative and varied — use ALL categories across the batch:
   robots = self-driving, drones, automation, humanoids, robotic arms
