@@ -356,8 +356,8 @@ CRITICAL rules:
           results.push({ id: Date.now()+r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.body||''), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
         }
         console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
-        // 15 second delay between batches to respect 5 RPM limit
-        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,15000));
+        // 20 second delay between batches to respect 5 RPM limit
+        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,20000));
         break;
       } catch(err) {
         const msg = err.message || '';
@@ -371,6 +371,12 @@ CRITICAL rules:
           break;
         }
 
+        // Rate limit (429 / per-minute) — wait longer before retrying
+        const isRateLimit = err.status === 429 || msg.includes('429') || msg.includes('PerMinute') || msg.includes('rate') || msg.includes('quota');
+        const delayMatch = msg.match(/retry in (\d+(?:\.\d+)?)s/i);
+        const baseWait = delayMatch ? Math.ceil(parseFloat(delayMatch[1])) * 1000 : (isRateLimit ? 30000 : 15000);
+        const waitMs = Math.min(baseWait, 60000);
+
         if(attempt===2){
           for(const a of batch){
             results.push({ id:Date.now()+Math.random(), headline:a.title, category:detectCategory(a.title,a.body||''), source:a.source, link:a.link, pubDate:a.pubDate,
@@ -378,8 +384,6 @@ CRITICAL rules:
             });
           }
         } else {
-          const delayMatch = msg.match(/retry in (\d+(?:\.\d+)?)s/i);
-          const waitMs = delayMatch ? Math.min(Math.ceil(parseFloat(delayMatch[1])) * 1000, 60000) : 15000;
           console.warn(`   ⏳ Waiting ${waitMs/1000}s before retry...`);
           await new Promise(r=>setTimeout(r,waitMs));
         }
