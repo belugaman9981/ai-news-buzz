@@ -879,6 +879,23 @@ app.post('/api/admin/refresh', (req,res) => {
   res.json({ok:true,message:'Refresh started.'}); refreshNews();
 });
 
+app.post('/api/admin/clear-cache', (req, res) => {
+  if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  cache.articles = [];
+  cache.lastUpdated = null;
+  try { fs.unlinkSync(CACHE_FILE); } catch {}
+  res.json({ ok: true, message: 'Cache cleared.' });
+});
+
+app.post('/api/admin/reset', (req, res) => {
+  if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  cache.articles = [];
+  cache.lastUpdated = null;
+  try { fs.unlinkSync(CACHE_FILE); } catch {}
+  res.json({ ok: true, message: 'Cache cleared. Refresh started.' });
+  refreshNews();
+});
+
 app.post('/api/newsletter/subscribe', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
