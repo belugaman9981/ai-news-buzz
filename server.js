@@ -86,21 +86,64 @@ function extractTeaser(fullText, maxChars = 300) {
   return (teaser.trim() || text.slice(0, maxChars)).trim();
 }
 
-async function generateGeminiSummary(fullText, headline) {
+/* ── Gemini helper with retry + exponential back-off ── */
+const geminiQueue = { lastCallAt: 0, minGapMs: 4000 }; // ≤15 RPM free tier
+
+async function callGemini(prompt, retries = 3) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    // Throttle: enforce minimum gap between calls
+    const wait = geminiQueue.minGapMs - (Date.now() - geminiQueue.lastCallAt);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+
+    try {
+      geminiQueue.lastCallAt = Date.now();
+      const res = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
+        { contents: [{ parts: [{ text: prompt }] }] },
+        { timeout: 20000 }
+      );
+      const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return text.trim() || null;
+    } catch (e) {
+      const status = e.response?.status;
+      const isRateLimit = status === 429 || status === 503;
+      const backoff = isRateLimit ? (attempt + 1) * 15000 : 3000;
+      if (attempt < retries) {
+        console.warn(`   ⚠ Gemini attempt ${attempt + 1} failed (${status || e.message}) — retrying in ${backoff / 1000}s`);
+        await new Promise(r => setTimeout(r, backoff));
+      } else {
+        console.warn(`   ✖ Gemini gave up after ${retries + 1} attempts: ${e.message}`);
+      }
+    }
+  }
+  return null;
+}
+
+async function generateGeminiContent(fullText, headline) {
+  const prompt = `You are writing for a kids' AI news site. Given the article below, return ONLY valid JSON with two keys:
+- "summary": 2-3 engaging sentences that summarize the article clearly. No phrases like "The article says". Write directly.
+- "wow": One short, punchy fun fact or surprising stat from the article starting with an emoji (e.g. "🤯 This robot can run at 28 mph — faster than most humans!").
+
+Headline: ${headline}
+
+Article:
+${fullText.slice(0, 4000)}
+
+Respond with only the JSON object, no markdown, no code fences.`;
+
+  const raw = await callGemini(prompt);
+  if (!raw) return null;
+
   try {
-    const prompt = `Summarize this news article in 2–3 clear, engaging sentences suitable for a headline teaser. Do not include phrases like "The article says" or "This article". Just write the summary directly.\n\nHeadline: ${headline}\n\nArticle:\n${fullText.slice(0, 4000)}`;
-    const res = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-      { contents: [{ parts: [{ text: prompt }] }] },
-      { timeout: 15000 }
-    );
-    const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return text.trim() || null;
-  } catch (e) {
-    console.warn(`   ⚠ Gemini summary failed: ${e.message}`);
-    return null;
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    // Fallback: try to extract summary text from raw response if JSON parse fails
+    console.warn('   ⚠ Gemini JSON parse failed, using raw text as summary');
+    return { summary: raw.split('\n')[0].slice(0, 400), wow: '' };
   }
 }
 
@@ -260,8 +303,9 @@ async function processArticles(rawArticles) {
       if (full) {
         console.log(`   ✓ [${cat}] ${full.length} chars — ${a.title.slice(0, 60)}`);
         const fullClean = cleanText(full);
-        const aiSummary = await generateGeminiSummary(fullClean, a.title);
-        const teaser = aiSummary || extractTeaser(fullClean);
+        const gemini = await generateGeminiContent(fullClean, a.title);
+        const teaser = gemini?.summary || extractTeaser(fullClean);
+        const wow    = gemini?.wow    || '';
         results.push({
           id:       Date.now() + Math.random(),
           headline: a.title,
@@ -270,16 +314,15 @@ async function processArticles(rawArticles) {
           link:     a.link,
           pubDate:  a.pubDate,
           levels: {
-            young:  { summary: teaser, full: fullClean, wow: '' },
-            middle: { summary: teaser, full: fullClean, wow: '' },
-            older:  { summary: teaser, full: fullClean, wow: '' },
+            young:  { summary: teaser, full: fullClean, wow },
+            middle: { summary: teaser, full: fullClean, wow },
+            older:  { summary: teaser, full: fullClean, wow },
           },
         });
         got++;
       } else {
         console.warn(`   ⚠ [${cat}] skipped (no full text) — ${a.title.slice(0, 60)}`);
       }
-      await new Promise(r => setTimeout(r, 200));
     }
     // If we got nothing for this category, use snippet fallback from first article
     if (got === 0 && pool.length > 0) {
