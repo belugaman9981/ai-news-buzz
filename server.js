@@ -234,6 +234,9 @@ async function scrapeAllFeeds() {
 
 /* ── fetch & extract plain text from an article URL ── */
 async function fetchFullArticle(url) {
+  // Skip domains that never serve scrapeable article content
+  const BLACKLIST = ['github.com', 'twitter.com', 'x.com', 'reddit.com', 'youtube.com', 'linkedin.com', 'facebook.com', 'instagram.com'];
+  try { if (BLACKLIST.some(d => new URL(url).hostname.includes(d))) return null; } catch { return null; }
   try {
     const res = await axios.get(url, {
       timeout: 12000,
@@ -837,6 +840,15 @@ app.post('/api/admin/refresh', (req,res) => {
   if((req.headers['x-admin-secret']||req.body?.secret)!==ADMIN_SECRET) return res.status(403).json({error:'Forbidden'});
   res.json({ok:true,message:'Refresh started.'}); refreshNews();
 });
+
+app.post('/api/explain', async (req, res) => {
+  const { word } = req.body || {};
+  if (!word || word.length < 2 || word.length > 40) return res.status(400).json({ error: 'Invalid word' });
+  const prompt = `Explain the word "${word}" to a kid aged 8-12 reading an AI news article. One or two sentences max. Use simple, fun words. Talk directly like to a curious kid. Never start your reply with the word itself.`;
+  const explanation = await callGemini(prompt, 2) || "Hmm, not sure about that one!";
+  res.json({ explanation });
+});
+
 
 app.post('/api/admin/clear-cache', (req, res) => {
   if ((req.headers['x-admin-secret'] || req.body?.secret) !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
