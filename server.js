@@ -5,9 +5,7 @@ const compression = require('compression');
 const helmet      = require('helmet');
 const rateLimit   = require('express-rate-limit');
 const cron        = require('node-cron');
-// rss-parser removed — using NewsAPI instead
-const axios = require('axios');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios       = require('axios');
 const Stripe      = require('stripe');
 const nodemailer  = require('nodemailer');
 const bcrypt      = require('bcryptjs');
@@ -28,42 +26,11 @@ const JWT_SECRET    = process.env.JWT_SECRET    || 'change-this-jwt-secret';
 const APP_URL       = process.env.APP_URL       || `http://localhost:${PORT}`;
 const PRICE_ID      = process.env.STRIPE_PRICE_ID;
 
-if (!process.env.GEMINI_API_KEY)    { console.warn('⚠ GEMINI_API_KEY not set — rewriting disabled'); }
 if (!process.env.STRIPE_SECRET_KEY) { console.warn('⚠ STRIPE_SECRET_KEY not set — payments disabled'); }
-
-const genAI  = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-let gemini = null;
-if (genAI) {
-  // Try models in order of preference — first one that exists wins
-  const CANDIDATE_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-preview-05-20',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
-  ];
-  (async () => {
-    for (const model of CANDIDATE_MODELS) {
-      try {
-        const m = genAI.getGenerativeModel({ model });
-        await m.generateContent({ contents: [{ role: 'user', parts: [{ text: 'hi' }] }] });
-        gemini = m;
-        console.log(`✅ Gemini model: ${model}`);
-        break;
-      } catch (e) {
-        if (e.status === 404) { console.log(`   ✗ ${model} not available`); continue; }
-        // 429 = quota hit but model exists — use it anyway
-        gemini = genAI.getGenerativeModel({ model });
-        console.log(`✅ Gemini model: ${model} (quota currently limited)`);
-        break;
-      }
-    }
-    if (!gemini) console.warn('⚠ No working Gemini model found — will serve raw articles');
-  })();
-}
-const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 if (!process.env.GMAIL_APP_PASSWORD) { console.warn('⚠ GMAIL_APP_PASSWORD not set — emails disabled'); }
+if (!process.env.NEWS_API_KEY) { console.warn('⚠ NEWS_API_KEY not set — cannot fetch articles'); }
+
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const mailer = process.env.GMAIL_APP_PASSWORD
   ? nodemailer.createTransport({
       service: 'gmail',
@@ -71,7 +38,6 @@ const mailer = process.env.GMAIL_APP_PASSWORD
     })
   : null;
 const FROM   = 'kidsaibuzz@gmail.com';
-if (!process.env.NEWS_API_KEY) { console.warn('⚠ NEWS_API_KEY not set — cannot fetch articles'); }
 
 /* ═══════════════════════════════════════════════
    NEWSAPI QUERIES — one per category
@@ -246,28 +212,10 @@ async function fetchFullArticle(url) {
   }
 }
 
-async function rewriteForKids(rawArticles) {
-  if(!rawArticles.length) return [];
+async function processArticles(rawArticles) {
+  if (!rawArticles.length) return [];
 
-  // If Gemini is not configured, serve raw articles directly so the site is never blank
-  if (!gemini) {
-    console.log('📰 No Gemini key — serving raw articles directly');
-    return rawArticles.slice(0, 60).map(a => ({
-      id: Date.now() + Math.random(),
-      headline: a.title,
-      category: detectCategory(a.title, a.body || a.snippet || ''),
-      source: a.source,
-      link: a.link,
-      pubDate: a.pubDate,
-      levels: {
-        young:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every day!' },
-        middle: { summary: cleanText(a.snippet || a.body || a.title, 600), full: cleanText(a.body || a.snippet || a.title, 1800), wow: 'Researchers around the world are working on this.' },
-        older:  { summary: cleanText(a.snippet || a.body || a.title, 800), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'This represents a significant development in the field.' },
-      },
-    }));
-  }
-
-  // Pick up to 3 articles per category so every category gets coverage (21 total max)
+  // Pick up to 3 articles per category for good coverage
   const CATS = ['robots','art','science','gaming','animals','space','cool'];
   const byDetectedCat = {};
   CATS.forEach(c => byDetectedCat[c] = []);
@@ -275,123 +223,45 @@ async function rewriteForKids(rawArticles) {
     const c = detectCategory(a.title, a.body || a.snippet || '');
     if (byDetectedCat[c].length < 3) byDetectedCat[c].push(a);
   }
-  // Fill any empty categories with overflow from 'cool' / whatever has most
+  // Fill empty categories from the most stocked one
   for (const c of CATS) {
     if (byDetectedCat[c].length === 0) {
       const donor = CATS.find(d => byDetectedCat[d].length > 1 && d !== c);
       if (donor) byDetectedCat[c].push(byDetectedCat[donor].pop());
     }
   }
-  const toRewrite = CATS.flatMap(c => byDetectedCat[c]);
-  console.log(`✍️  Rewriting ${toRewrite.length} articles (${CATS.map(c => `${c}:${byDetectedCat[c].length}`).join(' ')})...`);
+  const toProcess = CATS.flatMap(c => byDetectedCat[c]);
+  console.log(`📰 Processing ${toProcess.length} articles (${CATS.map(c => `${c}:${byDetectedCat[c].length}`).join(' ')})...`);
 
-  // Fetch full article text for each — run in parallel with a 3s stagger to be polite
+  // Fetch full article text for each
   console.log('🌐 Fetching full article text...');
-  for (let i = 0; i < toRewrite.length; i++) {
-    const full = await fetchFullArticle(toRewrite[i].link);
+  for (let i = 0; i < toProcess.length; i++) {
+    const full = await fetchFullArticle(toProcess[i].link);
     if (full) {
-      toRewrite[i].fullText = full;
-      console.log(`   ✓ [${i+1}] fetched ${full.length} chars — ${toRewrite[i].title.slice(0, 60)}`);
+      toProcess[i].fullText = full;
+      console.log(`   ✓ [${i+1}] ${full.length} chars — ${toProcess[i].title.slice(0, 60)}`);
     } else {
-      console.warn(`   ⚠ [${i+1}] fallback to snippet — ${toRewrite[i].title.slice(0, 60)}`);
+      console.warn(`   ⚠ [${i+1}] using snippet — ${toProcess[i].title.slice(0, 60)}`);
     }
-    if (i < toRewrite.length - 1) await new Promise(r => setTimeout(r, 300));
+    if (i < toProcess.length - 1) await new Promise(r => setTimeout(r, 200));
   }
 
-  const BATCH=3; const results=[];
-  let dailyQuotaExhausted = false;
-
-  for(let i=0;i<toRewrite.length;i+=BATCH){
-    if(dailyQuotaExhausted) break;
-    const batch=toRewrite.slice(i,i+BATCH);
-    // IDs are 1-based within each batch so Gemini always sees [1], [2], [3]
-    const articleList=batch.map((a,j)=>{
-      const content = a.fullText || a.body || a.snippet || 'No content available';
-      return `[${j+1}] Title: ${a.title}\nContent:\n${content}`;
-    }).join('\n\n---\n\n');
-    const prompt=`You are a fun kids science writer for a magazine. Write completely original kid-friendly articles based on the stories below. Do NOT credit any source. The content may include website boilerplate, cookie notices, or navigation text — ignore all of that and focus only on the actual news story.
-
-${articleList}
-
-Return ONLY a valid JSON array (no markdown, no extra text).
-Each object must have exactly:
-{
-  "id": <number>,
-  "headline": "fun title max 10 words",
-  "category": "robots|art|science|gaming|animals|space|cool",
-  "levels": {
-    "young":  { "summary": "One flowing paragraph between 400 and 700 words written for age 7. Use very simple, fun words. Tell the whole story — what happened, why it's cool, and what it means. No bullet points, just one readable paragraph.", "full": "5 paragraphs for age 7, each 3-4 sentences. Use very simple fun words. Separate every paragraph with \\n\\n", "wow": "surprising fact max 10 words" },
-    "middle": { "summary": "One flowing paragraph between 400 and 700 words written for age 10. Cover what happened, why it matters, how it works, and what comes next. No bullet points, just one readable paragraph.", "full": "7 paragraphs for age 10, each 4-5 sentences. Include what happened, why it matters, how it works, who did it, cool details, and what comes next. Separate every paragraph with \\n\\n", "wow": "interesting fact max 14 words" },
-    "older":  { "summary": "One flowing paragraph between 400 and 700 words written for age 13. Include background, what happened, technical details, real-world impact, and future implications. No bullet points, just one readable paragraph.", "full": "9 paragraphs for age 13, each 4-6 sentences. Include background, what happened, technical details, expert reactions, real world impact, comparisons, and future implications. Separate every paragraph with \\n\\n", "wow": "insightful fact max 18 words" }
-  }
-}
-CRITICAL rules:
-- summary fields must be a single continuous paragraph of 400–700 words — not bullet points, not multiple paragraphs
-- paragraphs in "full" MUST be separated by \\n\\n
-- wow must be specific to THIS story — a real number, name, or detail. NEVER say "big deal for AI" or "AI is amazing"
-- For category, be creative and varied — use ALL categories across the batch:
-  robots = self-driving, drones, automation, humanoids, robotic arms
-  art = image/video/music generation, creative tools, AI design
-  science = medicine, climate, biology, physics, research, health
-  gaming = video games, esports, game AI, game engines
-  animals = wildlife, ecology, pets, nature, conservation
-  space = NASA, rockets, planets, telescopes, astronomy
-  cool = everything else (chatbots, LLMs, chips, breakthroughs)
-- SPREAD categories — if 3 articles, try to use 3 different categories`;
-
-    for(let attempt=0; attempt<3; attempt++){
-      try {
-        if(!gemini) throw new Error('Gemini not configured');
-        const result = await Promise.race([
-          gemini.generateContent(prompt),
-          new Promise((_,rej) => setTimeout(() => rej(new Error('Gemini timeout after 90s')), 90000)),
-        ]);
-        let text = result.response.text();
-        text = text.split('\n').filter(l => !l.startsWith('```')).join('\n').trim();
-        const s=text.indexOf('['),e=text.lastIndexOf(']');
-        if(s===-1||e===-1) throw new Error('No JSON array');
-        const rw=JSON.parse(text.slice(s,e+1));
-        for(const r of rw){
-          const raw=batch[r.id-1]; if(!raw) continue;
-          results.push({ id: Date.now()+r.id, headline:r.headline, category:r.category||detectCategory(raw.title,raw.body||''), source:raw.source, link:raw.link, pubDate:raw.pubDate, levels:r.levels });
-        }
-        console.log(`   ✓ Batch ${Math.floor(i/BATCH)+1} done (${rw.length} articles)`);
-        // 20 second delay between batches to respect 5 RPM limit
-        if(i+BATCH < toRewrite.length) await new Promise(r=>setTimeout(r,20000));
-        break;
-      } catch(err) {
-        const msg = err.message || '';
-        const batchNum = Math.floor(i/BATCH)+1;
-        console.warn(`   ⚠ Batch ${batchNum} attempt ${attempt+1} failed: ${msg.slice(0,200)}`);
-        if (err.status || err.statusText) console.warn(`   ⚠ HTTP status: ${err.status} ${err.statusText}`);
-
-        if(msg.includes('PerDay') || (msg.includes('limit: 0') && msg.includes('Per'))){
-          console.warn('   ✖ Daily Gemini quota exhausted — skipping remaining batches');
-          dailyQuotaExhausted = true;
-          break;
-        }
-
-        // Rate limit (429 / per-minute) — wait longer before retrying
-        const isRateLimit = err.status === 429 || msg.includes('429') || msg.includes('PerMinute') || msg.includes('rate') || msg.includes('quota');
-        const delayMatch = msg.match(/retry in (\d+(?:\.\d+)?)s/i);
-        const baseWait = delayMatch ? Math.ceil(parseFloat(delayMatch[1])) * 1000 : (isRateLimit ? 30000 : 15000);
-        const waitMs = Math.min(baseWait, 60000);
-
-        if(attempt===2){
-          for(const a of batch){
-            results.push({ id:Date.now()+Math.random(), headline:a.title, category:detectCategory(a.title,a.body||''), source:a.source, link:a.link, pubDate:a.pubDate,
-              levels:{ young:{summary:a.title,full:a.body?.slice(0,400)||a.title,wow:'Scientists made a cool discovery!'}, middle:{summary:a.title,full:a.body?.slice(0,600)||a.title,wow:'Researchers worked hard on this project.'}, older:{summary:a.title,full:a.body?.slice(0,800)||a.title,wow:'This represents a significant technical achievement.'} }
-            });
-          }
-        } else {
-          console.warn(`   ⏳ Waiting ${waitMs/1000}s before retry...`);
-          await new Promise(r=>setTimeout(r,waitMs));
-        }
-      }
-    }
-  }
-  console.log(`   → ${results.length} articles rewritten`);
-  return results;
+  return toProcess.map(a => {
+    const text = a.fullText || a.body || a.snippet || a.title;
+    return {
+      id:       Date.now() + Math.random(),
+      headline: a.title,
+      category: detectCategory(a.title, text),
+      source:   a.source,
+      link:     a.link,
+      pubDate:  a.pubDate,
+      levels: {
+        young:  { summary: cleanText(text, 2000), full: cleanText(text, 4000), wow: '' },
+        middle: { summary: cleanText(text, 2000), full: cleanText(text, 4000), wow: '' },
+        older:  { summary: cleanText(text, 2000), full: cleanText(text, 4000), wow: '' },
+      },
+    };
+  });
 }
 
 async function refreshNews() {
@@ -408,9 +278,9 @@ async function refreshNews() {
       return;
     }
 
-    let rewritten = await rewriteForKids(raw);
+    let rewritten = await processArticles(raw);
     if (!rewritten || !rewritten.length) {
-      console.warn('⚠ Gemini rewriting failed — serving raw articles directly');
+      console.warn('⚠ Processing failed — serving raw snippets');
       rewritten = raw.slice(0, 60).map(a => ({
         id: Date.now() + Math.random(),
         headline: a.title,
@@ -419,9 +289,9 @@ async function refreshNews() {
         link: a.link,
         pubDate: a.pubDate,
         levels: {
-          young:  { summary: cleanText(a.snippet || a.body || a.title, 400), full: cleanText(a.body || a.snippet || a.title, 1500), wow: 'Scientists are making amazing discoveries every single day!' },
-          middle: { summary: cleanText(a.snippet || a.body || a.title, 600), full: cleanText(a.body || a.snippet || a.title, 1800), wow: 'Researchers around the world are working on this.' },
-          older:  { summary: cleanText(a.snippet || a.body || a.title, 800), full: cleanText(a.body || a.snippet || a.title, 2000), wow: 'This represents a significant development in this field.' },
+          young:  { summary: cleanText(a.snippet || a.body || a.title, 2000), full: cleanText(a.body || a.snippet || a.title, 4000), wow: '' },
+          middle: { summary: cleanText(a.snippet || a.body || a.title, 2000), full: cleanText(a.body || a.snippet || a.title, 4000), wow: '' },
+          older:  { summary: cleanText(a.snippet || a.body || a.title, 2000), full: cleanText(a.body || a.snippet || a.title, 4000), wow: '' },
         },
       }));
     }
