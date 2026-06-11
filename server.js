@@ -71,12 +71,6 @@ function cleanText(text, maxLen) {
     .replace(/\[\+\d+ chars?\]/gi, '')   // remove [+10695 chars]
     .replace(/\s+/g, ' ')               // collapse whitespace
     .trim();
-  if (maxLen && t.length > maxLen) {
-    // cut at last sentence boundary before maxLen
-    const cut = t.slice(0, maxLen);
-    const lastDot = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
-    t = lastDot > maxLen * 0.5 ? cut.slice(0, lastDot + 1) : cut + '…';
-  }
   return t;
 }
 
@@ -215,53 +209,67 @@ async function fetchFullArticle(url) {
 async function processArticles(rawArticles) {
   if (!rawArticles.length) return [];
 
-  // Pick up to 3 articles per category for good coverage
   const CATS = ['robots','art','science','gaming','animals','space','cool'];
+
+  // Group ALL raw articles by category
   const byDetectedCat = {};
   CATS.forEach(c => byDetectedCat[c] = []);
   for (const a of rawArticles) {
     const c = detectCategory(a.title, a.body || a.snippet || '');
-    if (byDetectedCat[c].length < 3) byDetectedCat[c].push(a);
-  }
-  // Fill empty categories from the most stocked one
-  for (const c of CATS) {
-    if (byDetectedCat[c].length === 0) {
-      const donor = CATS.find(d => byDetectedCat[d].length > 1 && d !== c);
-      if (donor) byDetectedCat[c].push(byDetectedCat[donor].pop());
-    }
-  }
-  const toProcess = CATS.flatMap(c => byDetectedCat[c]);
-  console.log(`📰 Processing ${toProcess.length} articles (${CATS.map(c => `${c}:${byDetectedCat[c].length}`).join(' ')})...`);
-
-  // Fetch full article text for each
-  console.log('🌐 Fetching full article text...');
-  for (let i = 0; i < toProcess.length; i++) {
-    const full = await fetchFullArticle(toProcess[i].link);
-    if (full) {
-      toProcess[i].fullText = full;
-      console.log(`   ✓ [${i+1}] ${full.length} chars — ${toProcess[i].title.slice(0, 60)}`);
-    } else {
-      console.warn(`   ⚠ [${i+1}] using snippet — ${toProcess[i].title.slice(0, 60)}`);
-    }
-    if (i < toProcess.length - 1) await new Promise(r => setTimeout(r, 200));
+    byDetectedCat[c].push(a);
   }
 
-  return toProcess.map(a => {
-    const text = a.fullText || a.body || a.snippet || a.title;
-    return {
-      id:       Date.now() + Math.random(),
-      headline: a.title,
-      category: detectCategory(a.title, text),
-      source:   a.source,
-      link:     a.link,
-      pubDate:  a.pubDate,
-      levels: {
-        young:  { summary: cleanText(text, 2000), full: cleanText(text, 4000), wow: '' },
-        middle: { summary: cleanText(text, 2000), full: cleanText(text, 4000), wow: '' },
-        older:  { summary: cleanText(text, 2000), full: cleanText(text, 4000), wow: '' },
-      },
-    };
-  });
+  // For each category, try articles one by one until we get 3 with real full text
+  const results = [];
+  for (const cat of CATS) {
+    const pool = byDetectedCat[cat];
+    let got = 0;
+    for (const a of pool) {
+      if (got >= 3) break;
+      const full = await fetchFullArticle(a.link);
+      if (full) {
+        console.log(`   ✓ [${cat}] ${full.length} chars — ${a.title.slice(0, 60)}`);
+        results.push({
+          id:       Date.now() + Math.random(),
+          headline: a.title,
+          category: cat,
+          source:   a.source,
+          link:     a.link,
+          pubDate:  a.pubDate,
+          levels: {
+            young:  { summary: cleanText(full), full: cleanText(full), wow: '' },
+            middle: { summary: cleanText(full), full: cleanText(full), wow: '' },
+            older:  { summary: cleanText(full), full: cleanText(full), wow: '' },
+          },
+        });
+        got++;
+      } else {
+        console.warn(`   ⚠ [${cat}] skipped (no full text) — ${a.title.slice(0, 60)}`);
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    // If we got nothing for this category, use snippet fallback from first article
+    if (got === 0 && pool.length > 0) {
+      const a = pool[0];
+      const text = cleanText(a.body || a.snippet || a.title);
+      results.push({
+        id: Date.now() + Math.random(),
+        headline: a.title,
+        category: cat,
+        source: a.source,
+        link: a.link,
+        pubDate: a.pubDate,
+        levels: {
+          young:  { summary: text, full: text, wow: '' },
+          middle: { summary: text, full: text, wow: '' },
+          older:  { summary: text, full: text, wow: '' },
+        },
+      });
+    }
+  }
+
+  console.log(`📰 ${results.length} articles ready`);
+  return results;
 }
 
 async function refreshNews() {
