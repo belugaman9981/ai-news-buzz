@@ -74,6 +74,36 @@ function cleanText(text, maxLen) {
   return t;
 }
 
+function extractTeaser(fullText, maxChars = 300) {
+  const text = cleanText(fullText);
+  // Split on sentence boundaries and take enough sentences to fill ~maxChars
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+  let teaser = '';
+  for (const s of sentences) {
+    if (teaser.length + s.length > maxChars) break;
+    teaser += s;
+  }
+  return (teaser.trim() || text.slice(0, maxChars)).trim();
+}
+
+async function generateGeminiSummary(fullText, headline) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const prompt = `Summarize this news article in 2–3 clear, engaging sentences suitable for a headline teaser. Do not include phrases like "The article says" or "This article". Just write the summary directly.\n\nHeadline: ${headline}\n\nArticle:\n${fullText.slice(0, 4000)}`;
+    const res = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
+      { contents: [{ parts: [{ text: prompt }] }] },
+      { timeout: 15000 }
+    );
+    const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return text.trim() || null;
+  } catch (e) {
+    console.warn(`   ⚠ Gemini summary failed: ${e.message}`);
+    return null;
+  }
+}
+
 function detectCategory(title, summary) {
   const text = (title + ' ' + summary).toLowerCase();
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS))
@@ -229,6 +259,9 @@ async function processArticles(rawArticles) {
       const full = await fetchFullArticle(a.link);
       if (full) {
         console.log(`   ✓ [${cat}] ${full.length} chars — ${a.title.slice(0, 60)}`);
+        const fullClean = cleanText(full);
+        const aiSummary = await generateGeminiSummary(fullClean, a.title);
+        const teaser = aiSummary || extractTeaser(fullClean);
         results.push({
           id:       Date.now() + Math.random(),
           headline: a.title,
@@ -237,9 +270,9 @@ async function processArticles(rawArticles) {
           link:     a.link,
           pubDate:  a.pubDate,
           levels: {
-            young:  { summary: cleanText(full), full: cleanText(full), wow: '' },
-            middle: { summary: cleanText(full), full: cleanText(full), wow: '' },
-            older:  { summary: cleanText(full), full: cleanText(full), wow: '' },
+            young:  { summary: teaser, full: fullClean, wow: '' },
+            middle: { summary: teaser, full: fullClean, wow: '' },
+            older:  { summary: teaser, full: fullClean, wow: '' },
           },
         });
         got++;
@@ -251,7 +284,8 @@ async function processArticles(rawArticles) {
     // If we got nothing for this category, use snippet fallback from first article
     if (got === 0 && pool.length > 0) {
       const a = pool[0];
-      const text = cleanText(a.body || a.snippet || a.title);
+      const fullText = cleanText(a.body || a.snippet || a.title);
+      const teaser = extractTeaser(fullText);
       results.push({
         id: Date.now() + Math.random(),
         headline: a.title,
@@ -260,9 +294,9 @@ async function processArticles(rawArticles) {
         link: a.link,
         pubDate: a.pubDate,
         levels: {
-          young:  { summary: text, full: text, wow: '' },
-          middle: { summary: text, full: text, wow: '' },
-          older:  { summary: text, full: text, wow: '' },
+          young:  { summary: teaser, full: fullText, wow: '' },
+          middle: { summary: teaser, full: fullText, wow: '' },
+          older:  { summary: teaser, full: fullText, wow: '' },
         },
       });
     }
@@ -289,19 +323,23 @@ async function refreshNews() {
     let rewritten = await processArticles(raw);
     if (!rewritten || !rewritten.length) {
       console.warn('⚠ Processing failed — serving raw snippets');
-      rewritten = raw.slice(0, 60).map(a => ({
-        id: Date.now() + Math.random(),
-        headline: a.title,
-        category: detectCategory(a.title, a.body || a.snippet || ''),
-        source: a.source,
-        link: a.link,
-        pubDate: a.pubDate,
-        levels: {
-          young:  { summary: cleanText(a.snippet || a.body || a.title, 2000), full: cleanText(a.body || a.snippet || a.title, 4000), wow: '' },
-          middle: { summary: cleanText(a.snippet || a.body || a.title, 2000), full: cleanText(a.body || a.snippet || a.title, 4000), wow: '' },
-          older:  { summary: cleanText(a.snippet || a.body || a.title, 2000), full: cleanText(a.body || a.snippet || a.title, 4000), wow: '' },
-        },
-      }));
+      rewritten = raw.slice(0, 60).map(a => {
+        const fullText = cleanText(a.body || a.snippet || a.title);
+        const teaser = extractTeaser(fullText);
+        return {
+          id: Date.now() + Math.random(),
+          headline: a.title,
+          category: detectCategory(a.title, a.body || a.snippet || ''),
+          source: a.source,
+          link: a.link,
+          pubDate: a.pubDate,
+          levels: {
+            young:  { summary: teaser, full: fullText, wow: '' },
+            middle: { summary: teaser, full: fullText, wow: '' },
+            older:  { summary: teaser, full: fullText, wow: '' },
+          },
+        };
+      });
     }
 
     const CATS = ['robots','art','science','gaming','animals','space','cool'];
