@@ -1436,18 +1436,13 @@ async function handleExplain() {
   const hint = document.getElementById('explainHint');
   if (hint) hint.style.display = 'none';
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/explain', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: 'You explain words to kids aged 8-12 reading an AI news article. Give a single short, fun explanation in 1-2 sentences max. Use simple words. No bullet points. Just explain it directly like talking to a curious kid. Never start with the word itself.',
-        messages: [{ role: 'user', content: 'Explain this word simply for a kid reading an AI news article: "' + word + '"' }]
-      })
+      body: JSON.stringify({ word })
     });
     const data = await res.json();
-    defEl.textContent = data?.content?.[0]?.text || "Hmm, not sure about that one!";
+    defEl.textContent = data?.explanation || "Hmm, not sure about that one!";
   } catch(e) { defEl.textContent = 'Could not load definition right now.'; }
 }
 </script>
