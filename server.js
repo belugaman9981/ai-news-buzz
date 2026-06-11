@@ -203,28 +203,43 @@ async function scrapeAllFeeds() {
 async function fetchFullArticle(url) {
   try {
     const res = await axios.get(url, {
-      timeout: 10000,
+      timeout: 12000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; KidsAIBuzz/1.0)',
-        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
       },
       maxContentLength: 2 * 1024 * 1024,
     });
-    const html = res.data || '';
-    const stripped = html
+    const html = typeof res.data === 'string' ? res.data : '';
+    if (!html) return null;
+
+    // Try to extract just the article body using common content containers
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+      || html.match(/<div[^>]*class="[^"]*(?:article|post|story|content|entry|body)[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+      || html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+
+    const source = articleMatch ? articleMatch[1] : html;
+
+    const stripped = source
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<(nav|header|footer|aside|figure|figcaption|form|button|iframe|noscript)[^>]*>[\s\S]*?<\/\1>/gi, '')
+      .replace(/<(nav|header|footer|aside|figure|figcaption|form|button|iframe|noscript|menu)[^>]*>[\s\S]*?<\/\1>/gi, '')
+      // Extract text from <p> tags first (main article prose)
+      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, inner) => inner.replace(/<[^>]+>/g, '') + '\n\n')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "\'")
+      .replace(/&#39;/g, "'")
       .replace(/\s{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
-    return stripped.length > 200 ? stripped.slice(0, 8000) : null;
+
+    // Require at least 500 chars of real content to be worth using
+    return stripped.length > 500 ? stripped.slice(0, 8000) : null;
   } catch (e) {
     console.warn(`   ⚠ fetchFullArticle(${url}): ${e.message}`);
     return null;
@@ -294,7 +309,7 @@ async function rewriteForKids(rawArticles) {
       const content = a.fullText || a.body || a.snippet || 'No content available';
       return `[${j+1}] Title: ${a.title}\nContent:\n${content}`;
     }).join('\n\n---\n\n');
-    const prompt=`You are a fun kids science writer for a magazine. Write completely original kid-friendly articles based on the stories below. Do NOT credit any source.
+    const prompt=`You are a fun kids science writer for a magazine. Write completely original kid-friendly articles based on the stories below. Do NOT credit any source. The content may include website boilerplate, cookie notices, or navigation text — ignore all of that and focus only on the actual news story.
 
 ${articleList}
 
