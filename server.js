@@ -931,7 +931,7 @@ app.get('/sitemap.xml', (req, res) => {
     ...cache.articles.map(a => ({
       loc: `${base}/?article=${encodeURIComponent(a.headline||'')}`,
       priority: '0.6',
-      changefreq: 'daily' 
+      changefreq: 'daily'
     }))
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
