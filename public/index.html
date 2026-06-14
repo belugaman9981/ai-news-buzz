@@ -1413,7 +1413,7 @@ checkPromo();
 checkSession().then(loadNews);
 setInterval(()=>loadNews(true), 5*60*1000);
 updateBadges();
-updateStreak();  
+updateStreak();
 
 // register service worker for PWA
 if('serviceWorker' in navigator){
