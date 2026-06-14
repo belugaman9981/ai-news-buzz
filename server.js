@@ -938,7 +938,7 @@ app.get('/sitemap.xml', (req, res) => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u=>`  <url>
     <loc>${u.loc}</loc>
-    <changefreq>${u.changefreq}</changefreq>
+    <changefreq>${u.changefreq}</changefreq> 
     <priority>${u.priority}</priority>
   </url>`).join('\n')}
 </urlset>`;
