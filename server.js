@@ -311,7 +311,7 @@ async function processArticles(rawArticles) {
     const pool = byDetectedCat[cat];
     let got = 0;
     for (const a of pool) {
-      if (got >= 2) break;
+      if (got >= 6) break;
       const full = await fetchFullArticle(a.link);
       if (full) {
         console.log(`   ✓ [${cat}] ${full.length} chars — ${a.title.slice(0, 60)}`);
