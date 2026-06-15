@@ -109,7 +109,17 @@ async function callGemini(prompt, retries = 3) {
       return text.trim() || null;
     } catch (e) {
       const status = e.response?.status;
-      const isRateLimit = status === 429 || status === 503;
+
+      // 429 = quota exceeded (likely the 20/day free-tier RPD cap).
+      // Retrying with backoff won't help until the quota resets, and burns
+      // a huge amount of time per article (up to 90s x N articles).
+      // Fail immediately so the article falls back to extractTeaser().
+      if (status === 429) {
+        console.warn(`   ✖ Gemini quota exceeded (429) — using fallback teaser`);
+        return null;
+      }
+
+      const isRateLimit = status === 503;
       const backoff = isRateLimit ? (attempt + 1) * 15000 : 3000;
       if (attempt < retries) {
         console.warn(`   ⚠ Gemini attempt ${attempt + 1} failed (${status || e.message}) — retrying in ${backoff / 1000}s`);
