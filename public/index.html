@@ -436,13 +436,6 @@ body.dark .modal{background:var(--surface)}
   <div class="hdr-right">
     <span class="lu-badge" id="luBadge">Loading...</span>
     <button class="dark-btn" id="darkBtn" onclick="toggleDark()" title="Toggle dark mode">🌙</button>
-    <div class="lvl-pill">Level:
-      <select id="level" onchange="onLevelChange()">
-        <option value="young">Ages 6–8</option>
-        <option value="middle" selected>Ages 9–12</option>
-        <option value="older">Ages 13+</option>
-      </select>
-    </div>
     <div id="authButtons">
       <button class="hdr-btn" onclick="openModal('login')">Log in</button>
       <button class="hdr-btn primary" onclick="openModal('signup')">Sign up</button>
@@ -490,7 +483,7 @@ body.dark .modal{background:var(--surface)}
 <div class="social-proof">
   <div class="proof-item"><strong>Unlimited</strong> Fresh AI stories</div>
   <div class="proof-item"><strong>7</strong> Topic Categories</div>
-  <div class="proof-item"><strong>3</strong> Reading Levels</div>
+  <div class="proof-item"><strong>Kid-friendly</strong> writing</div>
   <div class="proof-item"><strong>⭐⭐⭐⭐⭐</strong> loved by kids</div>
   <div class="proof-item"><strong>Updated</strong> Everyday</div>
 </div>
@@ -593,11 +586,6 @@ body.dark .modal{background:var(--surface)}
         <div class="compare-feature">🎯 Topics covered</div>
         <div class="compare-free"><span class="cv no">All 7</span></div>
         <div class="compare-pro"><span class="cv yes">All 7 ✓</span></div>
-      </div>
-      <div class="compare-row">
-        <div class="compare-feature">📚 Reading levels</div>
-        <div class="compare-free"><span class="cv no">3 levels</span></div>
-        <div class="compare-pro"><span class="cv yes">3 levels ✓</span></div>
       </div>
       <div class="compare-row">
         <div class="compare-feature">🤖 AI-powered summaries</div>
@@ -815,7 +803,6 @@ function setCategory(cat, scroll=true){
   loadNews(true);
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
 }
-function onLevelChange(){activeLevel=document.getElementById('level').value;currentPage=1;allArticles=[];visibleFreeCount=2;loadNews(true);}
 
 /* ── render ── */
 function renderCards(){
