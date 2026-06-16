@@ -86,15 +86,14 @@ function extractTeaser(fullText, maxChars = 300) {
   return (teaser.trim() || text.slice(0, maxChars)).trim();
 }
 
-/* ── Gemini helper with retry + exponential back-off ── */
-const geminiQueue = { lastCallAt: 0, minGapMs: 4000 }; // ≤15 RPM free tier
+/* ── Gemini helper with retry + fast-fail on quota ── */
+const geminiQueue = { lastCallAt: 0, minGapMs: 4000 };
 
 async function callGemini(prompt, retries = 3) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    // Throttle: enforce minimum gap between calls
     const wait = geminiQueue.minGapMs - (Date.now() - geminiQueue.lastCallAt);
     if (wait > 0) await new Promise(r => setTimeout(r, wait));
 
@@ -109,18 +108,11 @@ async function callGemini(prompt, retries = 3) {
       return text.trim() || null;
     } catch (e) {
       const status = e.response?.status;
-
-      // 429 = quota exceeded (likely the 20/day free-tier RPD cap).
-      // Retrying with backoff won't help until the quota resets, and burns
-      // a huge amount of time per article (up to 90s x N articles).
-      // Fail immediately so the article falls back to extractTeaser().
       if (status === 429) {
         console.warn(`   ✖ Gemini quota exceeded (429) — using fallback teaser`);
         return null;
       }
-
-      const isRateLimit = status === 503;
-      const backoff = isRateLimit ? (attempt + 1) * 15000 : 3000;
+      const backoff = status === 503 ? (attempt + 1) * 15000 : 3000;
       if (attempt < retries) {
         console.warn(`   ⚠ Gemini attempt ${attempt + 1} failed (${status || e.message}) — retrying in ${backoff / 1000}s`);
         await new Promise(r => setTimeout(r, backoff));
@@ -151,7 +143,6 @@ Respond with only the JSON object, no markdown, no code fences.`;
     const cleaned = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned);
   } catch {
-    // Fallback: try to extract summary text from raw response if JSON parse fails
     console.warn('   ⚠ Gemini JSON parse failed, using raw text as summary');
     return { summary: raw.split('\n')[0].slice(0, 400), wow: '' };
   }
