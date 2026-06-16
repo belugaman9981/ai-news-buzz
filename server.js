@@ -370,7 +370,7 @@ async function refreshNews() {
     // If scraping returned nothing (all feeds blocked), keep old cache rather than going blank
     if (!raw || raw.length === 0) {
       console.warn('⚠ Scraping returned 0 articles — keeping existing cache intact');
-      cache.isRefreshing = false;
+      cache.isRefreshing = false; 
       return;
     }
 
