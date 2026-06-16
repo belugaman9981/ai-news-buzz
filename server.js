@@ -86,38 +86,43 @@ function extractTeaser(fullText, maxChars = 300) {
   return (teaser.trim() || text.slice(0, maxChars)).trim();
 }
 
-/* ── Gemini helper with retry + fast-fail on quota ── */
-const geminiQueue = { lastCallAt: 0, minGapMs: 4000 };
-
-async function callGemini(prompt, retries = 3) {
-  const apiKey = process.env.GEMINI_API_KEY;
+/* ── OpenAI gpt-4o-mini helper ── */
+async function callOpenAI(prompt, retries = 3) {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const wait = geminiQueue.minGapMs - (Date.now() - geminiQueue.lastCallAt);
-    if (wait > 0) await new Promise(r => setTimeout(r, wait));
-
     try {
-      geminiQueue.lastCallAt = Date.now();
       const res = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-        { contents: [{ parts: [{ text: prompt }] }] },
-        { timeout: 20000 }
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-4o-mini',
+          max_tokens: 500,
+          messages: [{ role: 'user', content: prompt }]
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 20000
+        }
       );
-      const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const text = res.data?.choices?.[0]?.message?.content || '';
       return text.trim() || null;
     } catch (e) {
       const status = e.response?.status;
       if (status === 429) {
-        console.warn(`   ✖ Gemini quota exceeded (429) — using fallback teaser`);
-        return null;
-      }
-      const backoff = status === 503 ? (attempt + 1) * 15000 : 3000;
-      if (attempt < retries) {
-        console.warn(`   ⚠ Gemini attempt ${attempt + 1} failed (${status || e.message}) — retrying in ${backoff / 1000}s`);
-        await new Promise(r => setTimeout(r, backoff));
+        const backoff = (attempt + 1) * 10000;
+        if (attempt < retries) {
+          console.warn(`   ⚠ OpenAI attempt ${attempt + 1} rate limited — retrying in ${backoff / 1000}s`);
+          await new Promise(r => setTimeout(r, backoff));
+        } else {
+          console.warn(`   ✖ OpenAI gave up after ${retries + 1} attempts`);
+        }
       } else {
-        console.warn(`   ✖ Gemini gave up after ${retries + 1} attempts: ${e.message}`);
+        console.warn(`   ✖ OpenAI failed (${status || e.message}) — using fallback teaser`);
+        return null;
       }
     }
   }
@@ -136,14 +141,14 @@ ${fullText.slice(0, 4000)}
 
 Respond with only the JSON object, no markdown, no code fences.`;
 
-  const raw = await callGemini(prompt);
+  const raw = await callOpenAI(prompt);
   if (!raw) return null;
 
   try {
     const cleaned = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned);
   } catch {
-    console.warn('   ⚠ Gemini JSON parse failed, using raw text as summary');
+    console.warn('   ⚠ OpenAI JSON parse failed, using raw text as summary');
     return { summary: raw.split('\n')[0].slice(0, 400), wow: '' };
   }
 }
@@ -846,7 +851,7 @@ app.post('/api/explain', async (req, res) => {
   const { word } = req.body || {};
   if (!word || word.length < 2 || word.length > 40) return res.status(400).json({ error: 'Invalid word' });
   const prompt = `Explain the word "${word}" to a kid aged 8-12 reading an AI news article. One or two sentences max. Use simple, fun words. Talk directly like to a curious kid. Never start your reply with the word itself.`;
-  const explanation = await callGemini(prompt, 2) || "Hmm, not sure about that one!";
+  const explanation = await callOpenAI(prompt, 2) || "Hmm, not sure about that one!";
   res.json({ explanation });
 });
 
