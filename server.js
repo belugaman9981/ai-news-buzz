@@ -301,13 +301,13 @@ async function processArticles(rawArticles) {
     byDetectedCat[c].push(a);
   }
 
-  // For each category, try articles one by one until we get 3 with real full text
-  const results = [];
-  for (const cat of CATS) {
-    const pool = byDetectedCat[cat];
-    let got = 0;
+  // Process all categories in parallel (cap at 12 attempts each to bound total time)
+  const MAX_ATTEMPTS = 12;
+  const catResults = await Promise.all(CATS.map(async cat => {
+    const pool = byDetectedCat[cat].slice(0, MAX_ATTEMPTS);
+    const catArticles = [];
     for (const a of pool) {
-      if (got >= 6) break;
+      if (catArticles.length >= 6) break;
       const full = await fetchFullArticle(a.link);
       if (full) {
         console.log(`   ✓ [${cat}] ${full.length} chars — ${a.title.slice(0, 60)}`);
@@ -315,7 +315,7 @@ async function processArticles(rawArticles) {
         const gemini = await generateGeminiContent(fullClean, a.title);
         const teaser = gemini?.summary || extractTeaser(fullClean);
         const wow    = gemini?.wow    || '';
-        results.push({
+        catArticles.push({
           id:       Date.now() + Math.random(),
           headline: a.title,
           category: cat,
@@ -328,17 +328,16 @@ async function processArticles(rawArticles) {
             older:  { summary: teaser, full: fullClean, wow },
           },
         });
-        got++;
       } else {
         console.warn(`   ⚠ [${cat}] skipped (no full text) — ${a.title.slice(0, 60)}`);
       }
     }
     // If we got nothing for this category, use snippet fallback from first article
-    if (got === 0 && pool.length > 0) {
-      const a = pool[0];
+    if (catArticles.length === 0 && byDetectedCat[cat].length > 0) {
+      const a = byDetectedCat[cat][0];
       const fullText = cleanText(a.body || a.snippet || a.title);
       const teaser = extractTeaser(fullText);
-      results.push({
+      catArticles.push({
         id: Date.now() + Math.random(),
         headline: a.title,
         category: cat,
@@ -352,7 +351,10 @@ async function processArticles(rawArticles) {
         },
       });
     }
-  }
+    return catArticles;
+  }));
+
+  const results = catResults.flat();
 
   console.log(`📰 ${results.length} articles ready`);
   return results;
