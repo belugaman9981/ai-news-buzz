@@ -86,17 +86,17 @@ function extractTeaser(fullText, maxChars = 300) {
   return (teaser.trim() || text.slice(0, maxChars)).trim();
 }
 
-/* ── OpenAI gpt-4o-mini helper ── */
-async function callOpenAI(prompt, retries = 3) {
-  const apiKey = process.env.OPENAI_API_KEY;
+/* ── DeepSeek helper (OpenAI-compatible API) ── */
+async function callDeepSeek(prompt, retries = 3) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
+        'https://api.deepseek.com/chat/completions',
         {
-          model: 'gpt-4o-mini',
+          model: 'deepseek-chat',
           max_tokens: 500,
           messages: [{ role: 'user', content: prompt }]
         },
@@ -115,13 +115,13 @@ async function callOpenAI(prompt, retries = 3) {
       if (status === 429) {
         const backoff = (attempt + 1) * 10000;
         if (attempt < retries) {
-          console.warn(`   ⚠ OpenAI attempt ${attempt + 1} rate limited — retrying in ${backoff / 1000}s`);
+          console.warn(`   ⚠ DeepSeek attempt ${attempt + 1} rate limited — retrying in ${backoff / 1000}s`);
           await new Promise(r => setTimeout(r, backoff));
         } else {
-          console.warn(`   ✖ OpenAI gave up after ${retries + 1} attempts`);
+          console.warn(`   ✖ DeepSeek gave up after ${retries + 1} attempts`);
         }
       } else {
-        console.warn(`   ✖ OpenAI failed (${status || e.message}) — using fallback teaser`);
+        console.warn(`   ✖ DeepSeek failed (${status || e.message}) — using fallback teaser`);
         return null;
       }
     }
@@ -141,14 +141,14 @@ ${fullText.slice(0, 4000)}
 
 Respond with only the JSON object, no markdown, no code fences.`;
 
-  const raw = await callOpenAI(prompt);
+  const raw = await callDeepSeek(prompt);
   if (!raw) return null;
 
   try {
     const cleaned = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned);
   } catch {
-    console.warn('   ⚠ OpenAI JSON parse failed, using raw text as summary');
+    console.warn('   ⚠ DeepSeek JSON parse failed, using raw text as summary');
     return { summary: raw.split('\n')[0].slice(0, 400), wow: '' };
   }
 }
@@ -301,13 +301,13 @@ async function processArticles(rawArticles) {
     byDetectedCat[c].push(a);
   }
 
-  // Process all categories in parallel (cap at 12 attempts each to bound total time)
-  const MAX_ATTEMPTS = 12;
-  const catResults = await Promise.all(CATS.map(async cat => {
-    const pool = byDetectedCat[cat].slice(0, MAX_ATTEMPTS);
-    const catArticles = [];
+  // For each category, try articles one by one until we get 3 with real full text
+  const results = [];
+  for (const cat of CATS) {
+    const pool = byDetectedCat[cat];
+    let got = 0;
     for (const a of pool) {
-      if (catArticles.length >= 6) break;
+      if (got >= 6) break;
       const full = await fetchFullArticle(a.link);
       if (full) {
         console.log(`   ✓ [${cat}] ${full.length} chars — ${a.title.slice(0, 60)}`);
@@ -315,7 +315,7 @@ async function processArticles(rawArticles) {
         const gemini = await generateGeminiContent(fullClean, a.title);
         const teaser = gemini?.summary || extractTeaser(fullClean);
         const wow    = gemini?.wow    || '';
-        catArticles.push({
+        results.push({
           id:       Date.now() + Math.random(),
           headline: a.title,
           category: cat,
@@ -328,16 +328,17 @@ async function processArticles(rawArticles) {
             older:  { summary: teaser, full: fullClean, wow },
           },
         });
+        got++;
       } else {
         console.warn(`   ⚠ [${cat}] skipped (no full text) — ${a.title.slice(0, 60)}`);
       }
     }
     // If we got nothing for this category, use snippet fallback from first article
-    if (catArticles.length === 0 && byDetectedCat[cat].length > 0) {
-      const a = byDetectedCat[cat][0];
+    if (got === 0 && pool.length > 0) {
+      const a = pool[0];
       const fullText = cleanText(a.body || a.snippet || a.title);
       const teaser = extractTeaser(fullText);
-      catArticles.push({
+      results.push({
         id: Date.now() + Math.random(),
         headline: a.title,
         category: cat,
@@ -351,10 +352,7 @@ async function processArticles(rawArticles) {
         },
       });
     }
-    return catArticles;
-  }));
-
-  const results = catResults.flat();
+  }
 
   console.log(`📰 ${results.length} articles ready`);
   return results;
@@ -853,7 +851,7 @@ app.post('/api/explain', async (req, res) => {
   const { word } = req.body || {};
   if (!word || word.length < 2 || word.length > 40) return res.status(400).json({ error: 'Invalid word' });
   const prompt = `Explain the word "${word}" to a kid aged 8-12 reading an AI news article. One or two sentences max. Use simple, fun words. Talk directly like to a curious kid. Never start your reply with the word itself.`;
-  const explanation = await callOpenAI(prompt, 2) || "Hmm, not sure about that one!";
+  const explanation = await callDeepSeek(prompt, 2) || "Hmm, not sure about that one!";
   res.json({ explanation });
 });
 
