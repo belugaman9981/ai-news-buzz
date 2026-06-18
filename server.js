@@ -97,7 +97,7 @@ async function callDeepSeek(prompt, retries = 3) {
         'https://api.deepseek.com/chat/completions',
         {
           model: 'deepseek-chat',
-          max_tokens: 2000,
+          max_tokens: 4000,
           messages: [{ role: 'user', content: prompt }]
         },
         {
@@ -147,10 +147,16 @@ Respond with only the JSON object, no markdown, no code fences.`;
 
   try {
     const cleaned = raw.replace(/```json|```/g, '').trim();
-    return JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned);
+    // Guard against partially-valid JSON missing expected fields
+    if (!parsed.summary || typeof parsed.summary !== 'string' || parsed.summary.trim().length < 10) {
+      console.warn('   ⚠ DeepSeek JSON missing usable summary — discarding response');
+      return null;
+    }
+    return parsed;
   } catch {
-    console.warn('   ⚠ DeepSeek JSON parse failed, using raw text as summary');
-    return { summary: raw.split('\n')[0].slice(0, 400), wow: '', fullRewrite: null };
+    console.warn('   ⚠ DeepSeek JSON parse failed (likely truncated) — discarding response');
+    return null;
   }
 }
 
