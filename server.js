@@ -97,7 +97,7 @@ async function callDeepSeek(prompt, retries = 3) {
         'https://api.deepseek.com/chat/completions',
         {
           model: 'deepseek-chat',
-          max_tokens: 500,
+          max_tokens: 2000,
           messages: [{ role: 'user', content: prompt }]
         },
         {
@@ -105,7 +105,7 @@ async function callDeepSeek(prompt, retries = 3) {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
-          timeout: 20000
+          timeout: 40000
         }
       );
       const text = res.data?.choices?.[0]?.message?.content || '';
@@ -130,14 +130,15 @@ async function callDeepSeek(prompt, retries = 3) {
 }
 
 async function generateGeminiContent(fullText, headline) {
-  const prompt = `You are writing for a kids' AI news site. Given the article below, return ONLY valid JSON with two keys:
-- "summary": 2-3 engaging sentences that summarize the article clearly. No phrases like "The article says". Write directly.
+  const prompt = `You are writing for a kids' AI news site for ages 9-12. Given the article below, return ONLY valid JSON with three keys:
+- "summary": 2-3 engaging sentences that summarize the article clearly for a kid. No phrases like "The article says". Write directly.
 - "wow": One short, punchy fun fact or surprising stat from the article starting with an emoji (e.g. "🤯 This robot can run at 28 mph — faster than most humans!").
+- "fullRewrite": Rewrite the ENTIRE article in simple, friendly language a 9-12 year old can easily understand and enjoy. Keep all the real facts, numbers, and key points — just explain them simply. Use short sentences and short paragraphs (2-4 sentences each). Avoid jargon; if a technical term is needed, briefly explain it in plain words right after using it. Keep a curious, friendly tone — never scary or dry. Aim for roughly the same level of detail as the original, just easier to read. Do not add a title or headline, just the article body.
 
 Headline: ${headline}
 
 Article:
-${fullText.slice(0, 4000)}
+${fullText.slice(0, 6000)}
 
 Respond with only the JSON object, no markdown, no code fences.`;
 
@@ -149,7 +150,7 @@ Respond with only the JSON object, no markdown, no code fences.`;
     return JSON.parse(cleaned);
   } catch {
     console.warn('   ⚠ DeepSeek JSON parse failed, using raw text as summary');
-    return { summary: raw.split('\n')[0].slice(0, 400), wow: '' };
+    return { summary: raw.split('\n')[0].slice(0, 400), wow: '', fullRewrite: null };
   }
 }
 
@@ -315,6 +316,7 @@ async function processArticles(rawArticles) {
         const gemini = await generateGeminiContent(fullClean, a.title);
         const teaser = gemini?.summary || extractTeaser(fullClean);
         const wow    = gemini?.wow    || '';
+        const kidFull = gemini?.fullRewrite || fullClean; // kid-friendly rewrite, or raw text if AI unavailable
         results.push({
           id:       Date.now() + Math.random(),
           headline: a.title,
@@ -323,9 +325,9 @@ async function processArticles(rawArticles) {
           link:     a.link,
           pubDate:  a.pubDate,
           levels: {
-            young:  { summary: teaser, full: fullClean, wow },
-            middle: { summary: teaser, full: fullClean, wow },
-            older:  { summary: teaser, full: fullClean, wow },
+            young:  { summary: teaser, full: kidFull, wow },
+            middle: { summary: teaser, full: kidFull, wow },
+            older:  { summary: teaser, full: kidFull, wow },
           },
         });
         got++;
