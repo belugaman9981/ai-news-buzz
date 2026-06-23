@@ -1,4 +1,4 @@
-# Kids AI Buzz 🚀
+# Kids AI Buzz, Real World News, for Kids🚀
 
 Real AI news scraped from 8 top tech sources, rewritten by Claude AI into kid-friendly language at 3 reading levels.
 
