@@ -1,6 +1,6 @@
 {
   "name": "kids-ai-buzz",
-  "version": "1.0.0",
+  "version": "2.1.8",
   "description": "AI news platform for kids — with subscriptions",
   "main": "server.js",
   "scripts": {
